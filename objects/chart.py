@@ -1,5 +1,5 @@
-import dataclasses
 import enum
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from objects.note import Layer, LongNote, Note, SkyNote
@@ -13,18 +13,18 @@ class Difficulty(enum.Enum):
     STELLAR = 4  # STELLAR譜面はカオスすぎる
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclass(kw_only=True)
 class Chart:
     version: int
     id: str
     difficultyType: Difficulty
     difficulty: FixedInteger
-    notes: list[Note]
-    longNotes: list[LongNote]
-    skyNotes: list[SkyNote]
-    layers: list[Layer]
+    notes: list[Note] = field(default_factory=list)
+    longNotes: list[LongNote] = field(default_factory=list)
+    skyNotes: list[SkyNote] = field(default_factory=list)
+    layers: list[Layer] = field(default_factory=list)
 
-    def save(self, path: Path):
+    def export(self, path: Path):
         with open(path, "wb") as f:
             # マジックバイト&バージョンを挿入する
             f.write(b"BEATiCA")
