@@ -1,6 +1,6 @@
-import dataclasses
 import enum
 import struct
+from dataclasses import dataclass
 
 from objects.types import FixedInteger
 
@@ -32,7 +32,7 @@ class CurveType(enum.Enum):
     easeOutIn = 4
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclass(kw_only=True)
 class Layer:
     id: int
     bpm: int
@@ -51,13 +51,7 @@ class Layer:
         ]
 
 
-@dataclasses.dataclass(kw_only=True)
-class LongNoteSeparators:
-    type: LongNoteStepType
-    curveType: CurveType
-
-
-@dataclasses.dataclass(kw_only=True)
+@dataclass(kw_only=True)
 class LongNote:
     id: int
     curveType: CurveType
@@ -71,7 +65,7 @@ class LongNote:
         ] + [step.to_bytes(4, "little") for step in self.steps]
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclass(kw_only=True)
 class SkyNote:
     id: int
     floating: float  # x5
@@ -83,7 +77,7 @@ class SkyNote:
         ]
 
 
-@dataclasses.dataclass(kw_only=True)
+@dataclass(kw_only=True)
 class Note:
     id: int
     beat: float

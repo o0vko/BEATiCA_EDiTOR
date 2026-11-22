@@ -2,11 +2,14 @@ from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from etc import constants as Const
+from objects.edit import EditingChart
 
 
 class ChartViewWidget(QWidget):
-    def __init__(self):
+    def __init__(self, editing: EditingChart):
         super().__init__()
+        self.editing: EditingChart = editing
+
         # スクロールさせたい全体の描画サイズを指定
         self.setMinimumSize(Const.WINDOW_WIDTH, 1000)
 

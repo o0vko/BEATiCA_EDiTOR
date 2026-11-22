@@ -2,15 +2,16 @@ import os
 import sys
 
 import PySide6
+import qtawesome as qta
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QColor, QIcon, QPalette
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
     QMenu,
     QScrollArea,
+    QSplitter,
     QToolBar,
-    QVBoxLayout,
-    QWidget,
 )
 
 from etc import constants as Const
@@ -19,6 +20,7 @@ from objects.edit import EditingChart
 from objects.note import Layer
 from objects.types import FixedInteger
 from widets.chart_view import ChartViewWidget
+from widets.front_view import FrontViewWidget
 
 
 class MainWindow(QMainWindow):
@@ -30,7 +32,6 @@ class MainWindow(QMainWindow):
                 id="new_chart",
                 difficultyType=Difficulty.NORMAL,
                 difficulty=FixedInteger(major=1, minor=0),
-                notes=[],
                 layers=[
                     Layer(
                         id=0,
@@ -48,36 +49,80 @@ class MainWindow(QMainWindow):
 
         # メニューバー
         menubar = self.menuBar()
-        file_menu = QMenu("ファイル", self)
-        menubar.addMenu(file_menu)
+        fileMenu = QMenu("ファイル", self)
+        menubar.addMenu(fileMenu)
 
         # アクション作成
-        open_action = QAction("保存", self)
-        file_menu.addAction(open_action)
+        saveAction = QAction("保存", self)
+        fileMenu.addAction(saveAction)
 
         # ツールバー作成
         toolbar = QToolBar("メインツールバー", self)
         self.addToolBar(toolbar)
 
-        open_action = QAction(
-            self, icon=QIcon(str(Const.IMAGES_PATH / "icons" / "tap_note.png"))
+        selectPencil = QAction(
+            self,
+            icon=QIcon(qta.icon("fa5s.mouse-pointer", color="#fff")),
+            toolTip="選択",
         )
-        toolbar.addAction(open_action)
+        toolbar.addAction(selectPencil)
+
+        selectPencil = QAction(
+            self,
+            icon=QIcon(qta.icon("fa5s.pencil-alt", color="#fff")),
+            toolTip="編集",
+        )
+        toolbar.addAction(selectPencil)
+
+        selectPencil = QAction(
+            self,
+            icon=QIcon(qta.icon("fa5s.eraser", color="#fff")),
+            toolTip="消去",
+        )
+        toolbar.addAction(selectPencil)
+
+        selectTapNote = QAction(
+            self,
+            icon=QIcon(str(Const.IMAGES_PATH / "icons" / "tap_note.png")),
+            toolTip="タップノーツを配置",
+        )
+        toolbar.addAction(selectTapNote)
 
         # Central Widget
-        central_widget = QWidget(self)
-        self.setCentralWidget(central_widget)
+        verticalSplitter = QSplitter(Qt.Orientation.Vertical)
 
-        # スクロールエリア
-        scroll_area = QScrollArea(central_widget)
-        canvas = ChartViewWidget()
+        horizontalSplitter = QSplitter(Qt.Orientation.Horizontal)
+        verticalSplitter.addWidget(horizontalSplitter)
 
-        scroll_area.setWidget(canvas)
-        scroll_area.setWidgetResizable(False)
+        # ノーマルチャートエリア
+        chartScrollArea = QScrollArea(horizontalSplitter)
+        chartAreaCanvas = ChartViewWidget(self.editing)
 
-        # レイアウト
-        layout = QVBoxLayout(central_widget)
-        layout.addWidget(scroll_area)
+        chartScrollArea.setWidget(chartAreaCanvas)
+        chartScrollArea.setWidgetResizable(False)
+
+        # スカイチャートエリア
+        chartSkyScrollArea = QScrollArea(horizontalSplitter)
+        chartSkyAreaCanvas = ChartViewWidget(self.editing)
+
+        chartSkyScrollArea.setWidget(chartSkyAreaCanvas)
+        chartSkyScrollArea.setWidgetResizable(False)
+
+        # 正面図
+        frontViewScrollArea = QScrollArea(verticalSplitter)
+        frontViewCanvas = FrontViewWidget(self.editing)
+
+        frontViewScrollArea.setWidget(frontViewCanvas)
+        frontViewScrollArea.setWidgetResizable(False)
+
+        horizontalSplitter.addWidget(chartScrollArea)
+        horizontalSplitter.addWidget(chartSkyScrollArea)
+        verticalSplitter.addWidget(frontViewScrollArea)
+
+        horizontalSplitter.setStretchFactor(1, 1)
+        verticalSplitter.setStretchFactor(1, 2)
+
+        self.setCentralWidget(verticalSplitter)
 
 
 if __name__ == "__main__":
