@@ -24,12 +24,6 @@ class FlickType(enum.Enum):
     down = 4
 
 
-class LongNoteStepType(enum.Enum):
-    normal = 0
-    invisible = 1
-    ignore = 2
-
-
 class CurveType(enum.Enum):
     linear = 0
     easeIn = 1
