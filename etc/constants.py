@@ -7,5 +7,5 @@ IMAGES_PATH = ASSETS_PATH / "images"
 
 # notes view
 NOTE_WIDTH = 20
-NOTE_HEIGHT = NOTE_WIDTH / 4
+NOTE_HEIGHT = 4  # 本来は width / 4
 LANE_COUNT = 16

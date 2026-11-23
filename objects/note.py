@@ -5,15 +5,11 @@ from dataclasses import dataclass
 from objects.types import FixedInteger
 
 
-class NoteType(enum.Enum):
-    none = 0
-    damage = 1
-
-
 class NoteFlag(enum.Enum):
     none = 0
     trace = 1
-    longNote = 2
+    damage = 2
+    longNote = 3
 
 
 class FlickType(enum.Enum):
@@ -83,7 +79,6 @@ class Note:
     beat: float
     lane: float
     width: float
-    type: NoteType
     curveType: CurveType
     flickType: FlickType
     flag: NoteFlag
@@ -96,7 +91,6 @@ class Note:
             struct.pack("<f", self.beat),
             struct.pack("<f", self.lane),
             struct.pack("<f", self.width),
-            self.type.value.to_bytes(byteorder="little"),
             self.curveType.value.to_bytes(byteorder="little"),
             self.flickType.value.to_bytes(byteorder="little"),
             self.flag.value.to_bytes(byteorder="little"),

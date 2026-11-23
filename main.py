@@ -17,9 +17,8 @@ from PySide6.QtWidgets import (
 from etc import constants as Const
 from objects.chart import Chart, Difficulty
 from objects.edit import EditingChart
-from objects.note import Layer
+from objects.note import CurveType, FlickType, Layer, Note, NoteFlag
 from objects.types import FixedInteger
-from widets.chart_sky_view import ChartSkyViewWidget
 from widets.chart_view import ChartViewWidget
 from widets.front_view import FrontViewWidget
 
@@ -33,6 +32,19 @@ class MainWindow(QMainWindow):
                 id="new_chart",
                 difficultyType=Difficulty.NORMAL,
                 difficulty=FixedInteger(major=1, minor=0),
+                notes=[
+                    Note(
+                        id=0,
+                        beat=0.0,
+                        lane=0,
+                        width=4,
+                        curveType=CurveType.linear,
+                        flickType=FlickType.none,
+                        flag=NoteFlag.none,
+                        layer=0,
+                        skyNote=0,
+                    )
+                ],
                 layers=[
                     Layer(
                         id=0,
@@ -48,16 +60,19 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("BEATiCA EDiTOR")
         self.resize(Const.WINDOW_WIDTH, Const.WINDOW_HEIGHT)
 
-        # メニューバー
+        self.setupMenubar()
+        self.setupToolbar()
+        self.setupWidget()
+
+    def setupMenubar(self):
         menubar = self.menuBar()
         fileMenu = QMenu("ファイル", self)
         menubar.addMenu(fileMenu)
 
-        # アクション作成
         saveAction = QAction("保存", self)
         fileMenu.addAction(saveAction)
 
-        # ツールバー作成
+    def setupToolbar(self):
         toolbar = QToolBar("メインツールバー", self)
         self.addToolBar(toolbar)
 
@@ -65,13 +80,6 @@ class MainWindow(QMainWindow):
             self,
             icon=QIcon(qta.icon("fa5s.mouse-pointer", color="#fff")),
             toolTip="選択",
-        )
-        toolbar.addAction(selectPencil)
-
-        selectPencil = QAction(
-            self,
-            icon=QIcon(qta.icon("fa5s.pencil-alt", color="#fff")),
-            toolTip="編集",
         )
         toolbar.addAction(selectPencil)
 
@@ -89,25 +97,15 @@ class MainWindow(QMainWindow):
         )
         toolbar.addAction(selectTapNote)
 
-        # Central Widget
+    def setupWidget(self):
         verticalSplitter = QSplitter(Qt.Orientation.Vertical)
 
-        horizontalSplitter = QSplitter(Qt.Orientation.Horizontal)
-        verticalSplitter.addWidget(horizontalSplitter)
+        # チャートエリア
+        chartScrollArea = QScrollArea(verticalSplitter)
+        self.chartAreaCanvas = ChartViewWidget(self.editing, chartScrollArea)
 
-        # ノーマルチャートエリア
-        chartScrollArea = QScrollArea(horizontalSplitter)
-        chartAreaCanvas = ChartViewWidget(self.editing)
-
-        chartScrollArea.setWidget(chartAreaCanvas)
+        chartScrollArea.setWidget(self.chartAreaCanvas)
         chartScrollArea.setWidgetResizable(False)
-
-        # スカイチャートエリア
-        chartSkyScrollArea = QScrollArea(horizontalSplitter)
-        chartSkyAreaCanvas = ChartSkyViewWidget(self.editing)
-
-        chartSkyScrollArea.setWidget(chartSkyAreaCanvas)
-        chartSkyScrollArea.setWidgetResizable(False)
 
         # 正面図
         frontViewScrollArea = QScrollArea(verticalSplitter)
@@ -116,14 +114,22 @@ class MainWindow(QMainWindow):
         frontViewScrollArea.setWidget(frontViewCanvas)
         frontViewScrollArea.setWidgetResizable(False)
 
-        horizontalSplitter.addWidget(chartSkyScrollArea)
-        horizontalSplitter.addWidget(chartScrollArea)
+        verticalSplitter.addWidget(chartScrollArea)
         verticalSplitter.addWidget(frontViewScrollArea)
 
-        horizontalSplitter.setStretchFactor(1, 1)
-        verticalSplitter.setStretchFactor(1, 2)
+        verticalSplitter.splitterMoved.connect(self.chartAreaCanvas.onResized)
+
+        verticalSplitter.setStretchFactor(0, 3)
+        verticalSplitter.setStretchFactor(1, 1)
+        verticalSplitter.setSizes(
+            [int(Const.WINDOW_HEIGHT * 0.6), int(Const.WINDOW_HEIGHT * 0.4)]
+        )
 
         self.setCentralWidget(verticalSplitter)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.chartAreaCanvas.syncWidth()
 
 
 if __name__ == "__main__":
