@@ -19,6 +19,7 @@ from objects.chart import Chart, Difficulty
 from objects.edit import EditingChart
 from objects.note import Layer
 from objects.types import FixedInteger
+from widets.chart_sky_view import ChartSkyViewWidget
 from widets.chart_view import ChartViewWidget
 from widets.front_view import FrontViewWidget
 
@@ -103,7 +104,7 @@ class MainWindow(QMainWindow):
 
         # スカイチャートエリア
         chartSkyScrollArea = QScrollArea(horizontalSplitter)
-        chartSkyAreaCanvas = ChartViewWidget(self.editing)
+        chartSkyAreaCanvas = ChartSkyViewWidget(self.editing)
 
         chartSkyScrollArea.setWidget(chartSkyAreaCanvas)
         chartSkyScrollArea.setWidgetResizable(False)
@@ -115,8 +116,8 @@ class MainWindow(QMainWindow):
         frontViewScrollArea.setWidget(frontViewCanvas)
         frontViewScrollArea.setWidgetResizable(False)
 
-        horizontalSplitter.addWidget(chartScrollArea)
         horizontalSplitter.addWidget(chartSkyScrollArea)
+        horizontalSplitter.addWidget(chartScrollArea)
         verticalSplitter.addWidget(frontViewScrollArea)
 
         horizontalSplitter.setStretchFactor(1, 1)

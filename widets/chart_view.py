@@ -14,19 +14,26 @@ class ChartViewWidget(QWidget):
         self.setMinimumSize(Const.WINDOW_WIDTH, 1000)
 
     def paintEvent(self, event):
+        if not (parent := self.parentWidget()) or not (parent.size()):
+            return
+
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # 背景を白で塗りつぶす
-        painter.fillRect(self.rect(), QColor("#FFFFFF"))
+        # 背景を黒で塗りつぶす
+        painter.fillRect(self.rect(), QColor("#000"))
 
-        # グリッドと図形の描画例
-        painter.setPen(QPen(QColor("#CCCCCC"), 1))
-        for x in range(0, self.width(), 50):
-            painter.drawLine(x, 0, x, self.height())
-        for y in range(0, self.height(), 50):
-            painter.drawLine(0, y, self.width(), y)
+        painter.setPen(QPen(QColor("#fff"), 1))
+        for x in range(1, Const.LANE_COUNT + 2):
+            center = (parent.size().width() / 2) - (
+                Const.NOTE_WIDTH * ((Const.LANE_COUNT / 2) + 2)
+            )
+            point = round(center + x * Const.NOTE_WIDTH)
+            painter.drawLine(
+                point,
+                0,
+                point,
+                self.height(),
+            )
 
-        painter.setPen(QPen(QColor("#0000FF"), 3))
-        painter.drawEllipse(100, 100, 300, 300)
-        painter.drawText(800, 800, "スクロール先のテキスト")
+        painter.end()
