@@ -77,10 +77,10 @@ class ChartViewWidget(QWidget):
         return center + lane * Const.NOTE_WIDTH
 
     def getBeatFromYPoint(self, y: int) -> float:
-        return (self.height() - 50 - y) / 2
+        return (self.height() - 50 - y) / 5
 
     def getYPointFromBeat(self, beat: float) -> float:
-        return (self.height() - 50) - beat * 2
+        return (self.height() - 50) - beat * 5
 
     def getLaneFromXPoint(self, point: int) -> float:
         if not (parent := self.parentWidget()):

@@ -28,7 +28,6 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self.editing: EditingChart = EditingChart(
             chart=Chart(
-                version=1,
                 id="new_chart",
                 difficultyType=Difficulty.NORMAL,
                 difficulty=FixedInteger(major=1, minor=0),
@@ -48,9 +47,7 @@ class MainWindow(QMainWindow):
                 layers=[
                     Layer(
                         id=0,
-                        bpm=120,
-                        beat=FixedInteger(major=4, minor=4),
-                        speedRate=1.0,
+                        changes=[],
                         skyNote=0,
                     )
                 ],

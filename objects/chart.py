@@ -2,7 +2,7 @@ import enum
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from objects.note import Layer, LongNote, Note, SkyNote
+from objects.note import Changes, Layer, LongNote, Note, SkyNote
 from objects.types import FixedInteger
 
 
@@ -15,7 +15,7 @@ class Difficulty(enum.Enum):
 
 @dataclass(kw_only=True)
 class Chart:
-    version: int
+    version: int = 1
     id: str
     difficultyType: Difficulty
     difficulty: FixedInteger
@@ -23,6 +23,7 @@ class Chart:
     longNotes: list[LongNote] = field(default_factory=list)
     skyNotes: list[SkyNote] = field(default_factory=list)
     layers: list[Layer] = field(default_factory=list)
+    globalChanges: list[Changes] = field(default_factory=list)
 
     def export(self, path: Path):
         with open(path, "wb") as f:
@@ -52,3 +53,7 @@ class Chart:
             f.write(len(self.layers).to_bytes(byteorder="little"))
             for layer in self.layers:
                 f.writelines(layer.toBytes())
+
+            f.write(len(self.globalChanges).to_bytes(byteorder="little"))
+            for changes in self.globalChanges:
+                f.writelines(changes.toBytes())

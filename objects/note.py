@@ -29,21 +29,34 @@ class CurveType(enum.Enum):
 
 
 @dataclass(kw_only=True)
+class Changes:
+    beat: float
+    bpm: float
+    timeSignature: FixedInteger
+    speedRate: float
+
+    def toBytes(self) -> list[bytes]:
+        return [
+            struct.pack("<f", self.beat),
+            struct.pack("<f", self.bpm),
+            self.timeSignature.major.to_bytes(4, "little"),
+            self.timeSignature.minor.to_bytes(4, "little"),
+            struct.pack("<f", self.speedRate),
+        ]
+
+
+@dataclass(kw_only=True)
 class Layer:
     id: int
-    bpm: int
-    beat: FixedInteger
-    speedRate: float
     skyNote: int
+    changes: list[Changes]
 
     def toBytes(self) -> list[bytes]:
         return [
             self.id.to_bytes(4, "little"),
-            self.bpm.to_bytes(4, "little"),
-            self.beat.major.to_bytes(4, "little"),
-            self.beat.minor.to_bytes(4, "little"),
-            struct.pack("<f", self.speedRate),
             self.skyNote.to_bytes(4, "little"),
+            len(self.changes).to_bytes(length=4, byteorder="little"),
+            *[data for changes in self.changes for data in changes.toBytes()],
         ]
 
 
@@ -62,14 +75,27 @@ class LongNote:
 
 
 @dataclass(kw_only=True)
+class SkyNoteFloating:
+    beat: float
+    floating: float
+
+    def toBytes(self) -> list[bytes]:
+        return [
+            struct.pack("<f", self.beat),
+            struct.pack("<f", self.floating),
+        ]
+
+
+@dataclass(kw_only=True)
 class SkyNote:
     id: int
-    floating: float  # x5
+    floatings: list[SkyNoteFloating]  # x5
 
     def toBytes(self) -> list[bytes]:
         return [
             self.id.to_bytes(4, "little"),
-            struct.pack("<f", self.floating),
+            len(self.floatings).to_bytes(4, "little"),
+            *[data for floating in self.floatings for data in floating.toBytes()],
         ]
 
 
