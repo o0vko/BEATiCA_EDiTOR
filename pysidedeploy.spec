@@ -35,7 +35,7 @@ header_search_paths =
 [nuitka]
 macos.permissions = 
 mode = standalone
-extra_args = --quiet --noinclude-qt-translations --include-data-dir=assets=assets
+extra_args = --quiet --noinclude-qt-translations --include-data-dir=assets=assets --assume-yes-for-downloads
 
 [buildozer]
 mode = debug
