@@ -29,7 +29,7 @@ class CurveType(enum.Enum):
 
 
 @dataclass(kw_only=True)
-class Changes:
+class Change:
     beat: float
     bpm: float
     timeSignature: FixedInteger
@@ -49,7 +49,7 @@ class Changes:
 class Layer:
     id: int
     skyNote: int
-    changes: list[Changes]
+    changes: list[Change]
 
     def toBytes(self) -> list[bytes]:
         return [
@@ -64,12 +64,14 @@ class Layer:
 class LongNote:
     id: int
     curveType: CurveType
-    steps: list[int]
+    steps: list[int]  # 途中のノーツID（開始・終了ノーツも含む全てのノーツID）
+    startBeat: float = 0.0
 
     def toBytes(self) -> list[bytes]:
         return [
             self.id.to_bytes(4, "little"),
             self.curveType.value.to_bytes(byteorder="little"),
+            struct.pack("<f", self.startBeat),
             len(self.steps).to_bytes(4, "little"),
         ] + [step.to_bytes(4, "little") for step in self.steps]
 

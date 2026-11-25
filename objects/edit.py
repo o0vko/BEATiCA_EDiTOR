@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Literal
 
 from objects.chart import Chart
@@ -17,12 +18,22 @@ class NoteAction(Action):
     data: Note
 
 
+class EditMode(Enum):
+    SELECT = 0
+    TAP_NOTE = 1
+    TRACE_NOTE = 2
+    LONG_NOTE = 3
+    LONG_NOTE_CONNECTOR = 4
+    EVENT = 5
+
+
 @dataclass(kw_only=True)
 class EditingChart:
     chart: Chart
+    selectedNotes: list[Note] = field(default_factory=list)
     actions: list[Action] = field(default_factory=list)
     actionsRev: list[Action] = field(default_factory=list)
-    selectingNoteMode: Literal["select", "tap_note"] = "select"
+    editMode: EditMode = EditMode.SELECT
     nextNoteId: int = field(init=False, default=0)
 
     def __post_init__(self):

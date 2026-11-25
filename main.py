@@ -3,10 +3,12 @@ import sys
 
 import PySide6
 import qtawesome as qta
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QColor, QIcon, QPalette
+from PySide6 import QtMultimedia
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QApplication,
+    QFileDialog,
     QMainWindow,
     QMenu,
     QScrollArea,
@@ -16,34 +18,25 @@ from PySide6.QtWidgets import (
 
 from etc import constants as Const
 from objects.chart import Chart, Difficulty
-from objects.edit import EditingChart
-from objects.note import CurveType, FlickType, Layer, Note, NoteFlag
+from objects.edit import EditingChart, EditMode
+from objects.note import Change, Layer
 from objects.types import FixedInteger
 from widets.chart_view import ChartViewWidget
+from widets.details_view import DetailsViewWidget
 from widets.front_view import FrontViewWidget
 
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
         self.editing: EditingChart = EditingChart(
             chart=Chart(
                 id="new_chart",
                 difficultyType=Difficulty.NORMAL,
                 difficulty=FixedInteger(major=1, minor=0),
-                notes=[
-                    Note(
-                        id=0,
-                        beat=0.0,
-                        lane=0,
-                        width=4,
-                        curveType=CurveType.linear,
-                        flickType=FlickType.none,
-                        flag=NoteFlag.none,
-                        layer=0,
-                        skyNote=0,
-                    )
-                ],
+                offset=0,
                 layers=[
                     Layer(
                         id=0,
@@ -51,8 +44,21 @@ class MainWindow(QMainWindow):
                         skyNote=0,
                     )
                 ],
+                globalChanges=[
+                    Change(
+                        beat=0.0,
+                        bpm=120,
+                        speedRate=1.0,
+                        timeSignature=FixedInteger(major=4, minor=4),
+                    )
+                ],
             )
         )
+
+        self.player = QtMultimedia.QMediaPlayer()
+        self.audioOutput = QtMultimedia.QAudioOutput()
+        self.player.setAudioOutput(self.audioOutput)
+        self.audioOutput.setVolume(1.0)
 
         self.setWindowTitle("BEATiCA EDiTOR")
         self.resize(Const.WINDOW_WIDTH, Const.WINDOW_HEIGHT)
@@ -69,37 +75,93 @@ class MainWindow(QMainWindow):
         saveAction = QAction("保存", self)
         fileMenu.addAction(saveAction)
 
+        def loadAudio():
+            filename, _ = QFileDialog.getOpenFileName(
+                self,
+                "ファイルを開く",
+                "",
+                "音声ファイル (*.wav *.ogg *.mp3)",
+            )
+
+            if filename:
+                self.player.setSource(QUrl.fromLocalFile(filename))
+                self.chartAreaCanvas.syncWidth()
+
+        saveAction = QAction("音声ファイルをインポート", self)
+        fileMenu.triggered.connect(loadAudio)
+        fileMenu.addAction(saveAction)
+
+        fileMenu.addSeparator()
+
+        exitAction = QAction("終了", self)
+        fileMenu.addAction(exitAction)
+
     def setupToolbar(self):
         toolbar = QToolBar("メインツールバー", self)
         self.addToolBar(toolbar)
 
-        selectPencil = QAction(
-            self,
-            icon=QIcon(qta.icon("fa5s.mouse-pointer", color="#fff")),
-            toolTip="選択",
-        )
-        toolbar.addAction(selectPencil)
+        actionGroup = QActionGroup(self)
+        actionGroup.setExclusive(True)
 
-        selectPencil = QAction(
-            self,
-            icon=QIcon(qta.icon("fa5s.eraser", color="#fff")),
-            toolTip="消去",
-        )
-        toolbar.addAction(selectPencil)
+        actions = [
+            (
+                QIcon(qta.icon("fa5s.mouse-pointer", color="#fff")),
+                "選択",
+                EditMode.SELECT,
+            ),
+            (
+                QIcon(str(Const.IMAGES_PATH / "icons" / "tap_note.png")),
+                "タップノーツを配置",
+                EditMode.TAP_NOTE,
+            ),
+            (
+                QIcon(str(Const.IMAGES_PATH / "icons" / "trace_note.png")),
+                "トレースノーツを配置",
+                EditMode.TRACE_NOTE,
+            ),
+            (
+                QIcon(str(Const.IMAGES_PATH / "icons" / "long_note.png")),
+                "ロングノーツを配置",
+                EditMode.LONG_NOTE,
+            ),
+            (
+                QIcon(str(Const.IMAGES_PATH / "icons" / "long_note_connector.png")),
+                "ロングノーツコネクターを配置",
+                EditMode.LONG_NOTE_CONNECTOR,
+            ),
+            (
+                QIcon(),
+                "EVENT",
+                EditMode.EVENT,
+            ),
+        ]
 
-        selectTapNote = QAction(
-            self,
-            icon=QIcon(str(Const.IMAGES_PATH / "icons" / "tap_note.png")),
-            toolTip="タップノーツを配置",
-        )
-        toolbar.addAction(selectTapNote)
+        for icon, tooltip, mode in actions:
+            action = QAction(icon, tooltip, self)
+            action.setToolTip(tooltip)
+            action.setCheckable(True)
+
+            if mode == EditMode.SELECT:
+                action.setChecked(True)
+
+            action.triggered.connect(
+                lambda checked, mode=mode: (
+                    setattr(self.editing, "editMode", mode) if checked else None
+                )
+            )
+
+            actionGroup.addAction(action)
+            toolbar.addAction(action)
 
     def setupWidget(self):
         verticalSplitter = QSplitter(Qt.Orientation.Vertical)
+        horizontalSplitter = QSplitter(Qt.Orientation.Horizontal)
 
         # チャートエリア
         chartScrollArea = QScrollArea(verticalSplitter)
-        self.chartAreaCanvas = ChartViewWidget(self.editing, chartScrollArea)
+        self.chartAreaCanvas = ChartViewWidget(
+            self.editing, chartScrollArea, self.player
+        )
 
         chartScrollArea.setWidget(self.chartAreaCanvas)
         chartScrollArea.setWidgetResizable(False)
@@ -122,11 +184,30 @@ class MainWindow(QMainWindow):
             [int(Const.WINDOW_HEIGHT * 0.6), int(Const.WINDOW_HEIGHT * 0.4)]
         )
 
-        self.setCentralWidget(verticalSplitter)
+        # 楽曲情報編集
+        detailsView = DetailsViewWidget(self.editing)
+        detailsView.chartChanged.connect(self.chartAreaCanvas.onChartChanged)
+
+        horizontalSplitter.addWidget(verticalSplitter)
+        horizontalSplitter.addWidget(detailsView)
+        horizontalSplitter.setStretchFactor(0, 3)
+        horizontalSplitter.setStretchFactor(1, 1)
+        horizontalSplitter.setSizes(
+            [int(Const.WINDOW_WIDTH * 0.75), int(Const.WINDOW_WIDTH * 0.25)]
+        )
+
+        self.setCentralWidget(horizontalSplitter)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.chartAreaCanvas.syncWidth()
+
+    def keyPressEvent(self, event: QKeyEvent):
+        if event.key() == Qt.Key.Key_Space:
+            if self.player.isPlaying():
+                self.player.pause()
+            else:
+                self.player.play()
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 import enum
+import struct
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from objects.note import Changes, Layer, LongNote, Note, SkyNote
+from objects.note import Change, Layer, LongNote, Note, SkyNote
 from objects.types import FixedInteger
 
 
@@ -19,11 +20,12 @@ class Chart:
     id: str
     difficultyType: Difficulty
     difficulty: FixedInteger
+    offset: float
     notes: list[Note] = field(default_factory=list)
     longNotes: list[LongNote] = field(default_factory=list)
     skyNotes: list[SkyNote] = field(default_factory=list)
     layers: list[Layer] = field(default_factory=list)
-    globalChanges: list[Changes] = field(default_factory=list)
+    globalChanges: list[Change] = field(default_factory=list)
 
     def export(self, path: Path):
         with open(path, "wb") as f:
@@ -36,6 +38,7 @@ class Chart:
             f.write(self.difficultyType.value.to_bytes(byteorder="little"))
             f.write(self.difficulty.major.to_bytes(byteorder="little"))
             f.write(self.difficulty.minor.to_bytes(byteorder="little"))
+            f.write(struct.pack("<f", self.offset))
 
             # ノーツ情報を書き込む
             f.write(len(self.notes).to_bytes(byteorder="little"))
