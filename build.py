@@ -22,8 +22,7 @@ def main():
         raise FileNotFoundError(CONFIG_PATH)
 
     if target == "android":
-        # Androidはpyside6-deploy（デスクトップ専用）では作れない。
-        # pyside6-android-deploy があればそれを使い、無ければ buildozer を使う。
+        import glob
         import shutil
 
         icon_path = ROOT / "res" / "icon.png"
@@ -33,30 +32,40 @@ def main():
         with CONFIG_PATH.open("w", encoding="utf-8") as f:
             config.write(f)
 
+        arch = os.environ.get("BUILD_ARCH", "aarch64")
+
         android_deploy = shutil.which("pyside6-android-deploy")
-        if android_deploy:
-            # 1) Android用PySide6 wheelを取得
+        qtpip = shutil.which("qtpip")
+
+        # 1) Android用PySide6 wheelを取得（qtpip）
+        wheel_pyside = wheel_shiboken = None
+        if qtpip is not None:
             subprocess.run(
-                [android_deploy, "-c", str(CONFIG_PATH)], cwd=ROOT, check=True
+                [qtpip, "download", "PySide6", "--android", "--arch", arch],
+                cwd=ROOT,
+                check=True,
             )
+            pyside = sorted(glob.glob(str(ROOT / "PySide6-*.whl")))
+            shiboken = sorted(glob.glob(str(ROOT / "shiboken6-*.whl")))
+            wheel_pyside = pyside[-1] if pyside else None
+            wheel_shiboken = shiboken[-1] if shiboken else None
+
+        if android_deploy:
+            cmd = [android_deploy, "-c", str(CONFIG_PATH)]
+            if wheel_pyside:
+                cmd += ["--wheel-pyside", wheel_pyside]
+            if wheel_shiboken:
+                cmd += ["--wheel-shiboken", wheel_shiboken]
+            subprocess.run(cmd, cwd=ROOT, check=True)
             return
 
-        # qtpipでAndroid wheelを取得してからbuildozerでビルド
-        qtpip = shutil.which("qtpip")
-        if qtpip is None:
+        # pyside6-android-deployが無い場合はbuildozerでビルド
+        buildozer = shutil.which("buildozer")
+        if buildozer is None:
             raise RuntimeError(
                 "Androidビルドには pyside6-android-deploy か (qtpip + buildozer) が必要です。"
                 "uv sync --group android で導入してください。"
             )
-        arch = os.environ.get("BUILD_ARCH", "aarch64")
-        subprocess.run(
-            [qtpip, "download", "PySide6", "--android", "--arch", arch],
-            cwd=ROOT,
-            check=True,
-        )
-        buildozer = shutil.which("buildozer")
-        if buildozer is None:
-            raise RuntimeError("buildozer が見つかりません。uv sync --group android を実行してください。")
         subprocess.run([buildozer, "android", "debug"], cwd=ROOT, check=True)
         return
 
