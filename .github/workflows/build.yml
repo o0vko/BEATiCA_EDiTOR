@@ -101,12 +101,18 @@ jobs:
         if: failure()
         run: |
           set -uo pipefail
-          echo "== .buildozer tree =="
-          find .buildozer -maxdepth 6 -type d 2>/dev/null | head -50 || true
-          echo "== config.log search =="
-          find . "$HOME" -name config.log 2>/dev/null | while read -r f; do
+          echo "== PWD =="; pwd
+          echo "== .buildozer =="; ls -la .buildozer 2>/dev/null || echo "no .buildozer"
+          echo "== ~/.buildozer =="; ls -la "$HOME/.buildozer" 2>/dev/null || echo "no ~/.buildozer"
+          echo "== config.log search (/home/runner) =="
+          find /home/runner -name config.log 2>/dev/null | while read -r f; do
             echo "===== $f ====="
             tail -n 80 "$f" 2>/dev/null || true
+          done
+          echo "== *.log under .buildozer =="
+          find .buildozer "$HOME/.buildozer" -name '*.log' 2>/dev/null | while read -r f; do
+            echo "===== $f ====="
+            tail -n 40 "$f" 2>/dev/null || true
           done
 
       - name: Package
