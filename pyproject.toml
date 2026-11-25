@@ -18,10 +18,13 @@ dev = [
     "ruff>=0.17.6",
     "ty>=0.0.107",
 ]
-# Androidビルド用（buildozer + qtpip + python-for-android）。SDK/NDK/Javaは別途必要
+# Androidビルド用（pyside6-android-deploy + buildozer + qtpip）。SDK/NDK/Javaは別途必要
 android = [
     "buildozer==1.6.0",
     "qtpip>=0.2.0",
+    "jinja2",
+    "pkginfo",
+    "tqdm",
 ]
 
 [tool.pyside6.deploy]
