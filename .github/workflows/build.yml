@@ -82,22 +82,30 @@ jobs:
           fi
           yes | "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" --licenses >/dev/null 2>&1 || true
           "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          # ガイド(PySide6-to-Android)推奨のNDK r28cを導入
+          "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" "ndk;28.2.13676358"
           # buildozerは旧パス tools/bin/sdkmanager を参照するためシンボリックリンクを張る
           mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
           for tool in sdkmanager avdmanager lint retrace; do
             src="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/$tool"
             [ -f "$src" ] && ln -sf "$src" "$ANDROID_SDK_ROOT/tools/bin/$tool"
           done
-          # NDKはシステム既定(27.3)を使用（r28cは上書きしない）
           # NDK/ビルドツールに実行権限を付与（無いとlinkerが失敗する）
           chmod +x -R "$ANDROID_SDK_ROOT/ndk" 2>/dev/null || true
           chmod +x -R "$ANDROID_SDK_ROOT/build-tools" 2>/dev/null || true
           chmod +x -R "$ANDROID_SDK_ROOT/platform-tools" 2>/dev/null || true
+          # p4a/buildozerへr28cを明示
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
+          echo "ANDROIDNDK=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
 
       - name: Build
         env:
           BUILD_TARGET: android
           BUILD_ARCH: aarch64
+          # libffiの "C compiler cannot create executables" 回避のためAPIレベルを下げる
+          ANDROIDMINAPI: "21"
+          ANDROID_NDK_API: "21"
         run: uv run build.py
 
       - name: Dump config.log on failure

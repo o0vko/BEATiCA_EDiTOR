@@ -88,6 +88,7 @@ def main():
             cmd += ["--sdk-path", sdk_path]
         if ndk_path:
             cmd += ["--ndk-path", ndk_path]
+        # NDK API レベルは buildozer.spec / 環境変数 (ANDROIDMINAPI) 側で制御
         result = subprocess.run(cmd, check=False, cwd=ROOT)
         # 終了コード、または成果物(apk/aab)が無ければ失敗扱い
         import glob
