@@ -14,10 +14,10 @@ class NoteFlag(enum.Enum):
 
 class FlickType(enum.Enum):
     none = 0
-    left = 1
-    right = 2
-    up = 3
-    down = 4
+    up = 1
+    down = 2
+    left = 3
+    right = 4
 
 
 class CurveType(enum.Enum):
@@ -63,15 +63,13 @@ class Layer:
 @dataclass(kw_only=True)
 class LongNote:
     id: int
-    curveType: CurveType
+    skyNote: int
     steps: list[int]  # 途中のノーツID（開始・終了ノーツも含む全てのノーツID）
-    startBeat: float = 0.0
 
     def toBytes(self) -> list[bytes]:
         return [
             self.id.to_bytes(4, "little"),
-            self.curveType.value.to_bytes(byteorder="little"),
-            struct.pack("<f", self.startBeat),
+            self.skyNote.to_bytes(4, "little"),
             len(self.steps).to_bytes(4, "little"),
         ] + [step.to_bytes(4, "little") for step in self.steps]
 
@@ -79,12 +77,13 @@ class LongNote:
 @dataclass(kw_only=True)
 class SkyNoteFloating:
     beat: float
-    floating: float
+    lane: float
+    positionY: float  # 浮動位置のY座標（5.0でちょうど1）
 
     def toBytes(self) -> list[bytes]:
         return [
             struct.pack("<f", self.beat),
-            struct.pack("<f", self.floating),
+            struct.pack("<f", self.positionY),
         ]
 
 

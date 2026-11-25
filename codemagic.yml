@@ -1,0 +1,103 @@
+workflows:
+  windows:
+    name: Windows
+    instance_type: codemagic-windows-2024
+    when:
+      branch: main
+    scripts:
+      - name: Install uv
+        script: python -m pip install --upgrade uv
+      - name: Build
+        script: |
+          uv python install 3.13
+          uv sync
+          uv run build.py
+      - name: Package
+        script: python -c "import shutil; shutil.make_archive('BEATiCA-EDiTOR-windows', 'gztar', 'dist')"
+    artifacts:
+      - BEATiCA-EDiTOR-windows.tar.gz
+    publishing:
+      discord:
+        webhook_url: $DISCORD_WEBHOOK_URL
+        files:
+          - BEATiCA-EDiTOR-windows.tar.gz
+
+  macos:
+    name: macOS
+    instance_type: macos-x2
+    when:
+      branch: main
+    scripts:
+      - name: Install uv
+        script: python3 -m pip install --upgrade uv
+      - name: Build
+        script: |
+          uv python install 3.13
+          uv sync
+          uv run build.py
+      - name: Package
+        script: python3 -c "import shutil; shutil.make_archive('BEATiCA-EDiTOR-macos', 'gztar', 'dist')"
+    artifacts:
+      - BEATiCA-EDiTOR-macos.tar.gz
+    publishing:
+      discord:
+        webhook_url: $DISCORD_WEBHOOK_URL
+        files:
+          - BEATiCA-EDiTOR-macos.tar.gz
+
+  linux:
+    name: Linux
+    instance_type: ubuntu-2404
+    when:
+      branch: main
+    scripts:
+      - name: Install uv
+        script: python3 -m pip install --upgrade uv
+      - name: Build
+        script: |
+          uv python install 3.13
+          uv sync
+          uv run build.py
+      - name: Package
+        script: python3 -c "import shutil; shutil.make_archive('BEATiCA-EDiTOR-linux', 'gztar', 'dist')"
+    artifacts:
+      - BEATiCA-EDiTOR-linux.tar.gz
+    publishing:
+      discord:
+        webhook_url: $DISCORD_WEBHOOK_URL
+        files:
+          - BEATiCA-EDiTOR-linux.tar.gz
+
+  android:
+    name: Android
+    instance_type: ubuntu-2404
+    when:
+      branch: main
+    environment:
+      BUILD_TARGET: android
+      BUILD_ARCH: aarch64
+      # buildozer/qtpip が参照するAndroid SDK/NDK
+      ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT
+      ANDROID_NDK_HOME: $ANDROID_NDK_HOME
+    scripts:
+      - name: Install system dependencies
+        script: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential ccache libltdl-dev
+      - name: Install uv
+        script: python3 -m pip install --upgrade uv
+      - name: Build
+        script: |
+          uv python install 3.13
+          uv sync --group android
+          uv run build.py
+      - name: Package
+        script: python3 -c "import shutil,glob,os; fs=glob.glob('dist/*.apk')+glob.glob('dist/*.aab')+glob.glob('bin/*.apk'); [shutil.copy(f, 'BEATiCA-EDiTOR-android-'+os.path.basename(f)) for f in fs]"
+    artifacts:
+      - BEATiCA-EDiTOR-android-*.apk
+      - BEATiCA-EDiTOR-android-*.aab
+    publishing:
+      discord:
+        webhook_url: $DISCORD_WEBHOOK_URL
+        files:
+          - BEATiCA-EDiTOR-android-*.apk

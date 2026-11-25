@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf8'?>
+<nuitka-compilation-report nuitka_version="4.1.1" nuitka_commercial_version="not installed" mode="standalone" completion="error exit message (1)" exit_message="pyside6: Error, there is no Qt plugin family 'xcb' (only OrderedSet(['assetimporters', 'canbus', 'designer', 'generic', 'geometryloaders', 'geoservices', 'iconengines', 'imageformats', 'multimedia', 'networkinformation', 'platforminputcontexts', 'platforms', 'position', 'qmltooling', 'renderers', 'renderplugins', 'sceneparsers', 'scxmldatamodel', 'sensors', 'sqldrivers', 'styles', 'texttospeech', 'tls', 'vectorimageformats', 'webview'])).">
+  <performance>
+    <memory_usage name="after_launch" value="36728832" />
+  </performance>
+  <data_composer blob_size="None" />
+  <performance-totals>
+    <optimization-time pass="all" time="0.0000" module_count="0" />
+    <code-generation-time time="0.0000" module_count="0" />
+  </performance-totals>
+  <command_line>
+    <option value="C:\Users\nennneko5787\Documents\organizations\musica-lab\BEATiCA_EDiTOR\main.py" />
+    <option value="--follow-imports" />
+    <option value="--enable-plugin=pyside6" />
+    <option value="--output-dir=C:\Users\nennneko5787\Documents\organizations\musica-lab\BEATiCA_EDiTOR\deployment" />
+    <option value="--quiet" />
+    <option value="--noinclude-qt-translations" />
+    <option value="--standalone" />
+    <option value="--noinclude-dlls=*.cpp.o" />
+    <option value="--noinclude-dlls=*.qsb" />
+    <option value="--windows-icon-from-ico=C:\Users\nennneko5787\Documents\organizations\musica-lab\BEATiCA_EDiTOR\res\icon.ico" />
+    <option value="--include-qt-plugins=multimedia,platforminputcontexts,xcb" />
+  </command_line>
+  <plugins>
+    <plugin name="anti-bloat" user_enabled="no" />
+    <plugin name="data-files" user_enabled="no" />
+    <plugin name="delvewheel" user_enabled="no" />
+    <plugin name="dll-files" user_enabled="no" />
+    <plugin name="gevent" user_enabled="no" />
+    <plugin name="gi" user_enabled="no" />
+    <plugin name="glfw" user_enabled="no" />
+    <plugin name="implicit-imports" user_enabled="no" />
+    <plugin name="kivy" user_enabled="no" />
+    <plugin name="matplotlib" user_enabled="no" />
+    <plugin name="multiprocessing" user_enabled="no" />
+    <plugin name="options-nanny" user_enabled="no" />
+    <plugin name="pbr-compat" user_enabled="no" />
+    <plugin name="pkg-resources" user_enabled="no" />
+    <plugin name="playwright" user_enabled="no" />
+    <plugin name="pyside6" user_enabled="yes" />
+    <plugin name="pywebview" user_enabled="no" />
+    <plugin name="spacy" user_enabled="no" />
+    <plugin name="torch-jit" user_enabled="no" />
+    <plugin name="transformers" user_enabled="no" />
+  </plugins>
+  <distributions />
+  <python python_exe="${sys.prefix}\Scripts\python.exe" python_flavor="Unknown" python_version="3.13.13" os_name="Windows" os_release="10" arch_name="x86_64" filesystem_encoding="utf-8" gil="yes">
+    <search_path>
+      <path value="${cwd}" />
+      <path value="..\..\..\..\..\nennneko5787\AppData\Roaming\uv\python\cpython-3.13-windows-x86_64-none\DLLs" />
+      <path value="..\..\..\..\..\nennneko5787\AppData\Roaming\uv\python\cpython-3.13-windows-x86_64-none\Lib" />
+      <path value="..\..\..\..\..\nennneko5787\AppData\Roaming\uv\python\cpython-3.13-windows-x86_64-none" />
+      <path value="${sys.prefix}" />
+      <path value="${sys.prefix}\Lib\site-packages" />
+    </search_path>
+  </python>
+  <output />
+</nuitka-compilation-report>

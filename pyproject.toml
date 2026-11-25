@@ -1,7 +1,7 @@
 [project]
 name = "beatica-editor"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.0.1"
+description = "BEATiCA Editor"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -12,7 +12,21 @@ dependencies = [
 [dependency-groups]
 dev = [
     "jurigged>=0.6.1",
+    "pillow>=13.0.0",
+    "pip>=26.3",
     "pyright>=1.1.414",
     "ruff>=0.17.6",
     "ty>=0.0.107",
 ]
+# Androidビルド用（buildozer + qtpip + python-for-android）。SDK/NDK/Javaは別途必要
+android = [
+    "buildozer==1.6.0",
+    "qtpip>=0.2.0",
+]
+
+[tool.pyside6.deploy]
+title = "BEATiCA EDiTOR"
+input_file = "main.py"
+exec_directory = "dist"
+mode = "standalone"
+extra_args = "--quiet --noinclude-qt-translations --include-data-dir=assets=assets"
