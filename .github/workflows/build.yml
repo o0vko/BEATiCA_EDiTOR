@@ -1,0 +1,151 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
+          - os: ubuntu-latest
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Sync dependencies
+        run: uv sync
+
+      - name: Build
+        run: uv run build.py
+
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          NAME="BEATiCA-EDiTOR-${{ matrix.platform }}"
+          tar -czf "${NAME}.tar.gz" -C dist .
+          echo "ARCHIVE=${NAME}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: ${{ env.ARCHIVE }}
+
+  android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 cmake libffi-dev libssl-dev build-essential ccache libltdl-dev
+
+      - name: Sync dependencies (android)
+        run: uv sync --group android
+
+      - name: Build
+        env:
+          BUILD_TARGET: android
+          BUILD_ARCH: aarch64
+        run: uv run build.py
+
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          shopt -s nullglob
+          files=(dist/*.apk dist/*.aab bin/*.apk)
+          for f in "${files[@]}"; do
+            cp "$f" "release/BEATiCA-EDiTOR-android-$(basename "$f")"
+          done
+          tar -czf BEATiCA-EDiTOR-android.tar.gz -C release .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: BEATiCA-EDiTOR-android.tar.gz
+
+  release:
+    name: Create release and notify Discord
+    needs: [build, android]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect archives
+        id: collect
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release/ \;
+          ls -la release
+          {
+            echo 'files<<EOF'
+            find release -type f | sort
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || format('Build #{0}', github.run_number) }}
+          draft: false
+          prerelease: true
+          files: release/*
+
+      - name: Send to Discord webhook
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
+            echo "DISCORD_WEBHOOK_URL is not set; skipping"
+            exit 0
+          fi
+          mapfile -t FILES < <(find release -type f | sort)
+          if [ ${#FILES[@]} -eq 0 ]; then
+            echo "No files to send"
+            exit 0
+          fi
+          CONTENT="BEATiCA EDiTOR ビルド完了 (${{ github.ref_name }})"
+          ARGS=(-sS -H "Content-Type: multipart/form-data")
+          ARGS+=(-F "payload_json=$(jq -nc --arg c "$CONTENT" '{content:$c}')")
+          for f in "${FILES[@]}"; do
+            ARGS+=(-F "files=@${f}")
+          done
+          curl "${ARGS[@]}" "$DISCORD_WEBHOOK_URL"
