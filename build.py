@@ -88,7 +88,10 @@ def main():
             cmd += ["--sdk-path", sdk_path]
         if ndk_path:
             cmd += ["--ndk-path", ndk_path]
-        subprocess.run(cmd, cwd=ROOT, check=True)
+        result = subprocess.run(cmd, check=False, cwd=ROOT)
+        if result.returncode != 0:
+            print(f"[ANDROID] android-deploy failed (code {result.returncode})")
+            sys.exit(1)
         return
 
     system = platform.system()
@@ -105,11 +108,13 @@ def main():
     with CONFIG_PATH.open("w", encoding="utf-8") as f:
         config.write(f)
 
-    subprocess.run(
+    result = subprocess.run(
         ["pyside6-deploy", "-c", str(CONFIG_PATH)],
+        check=False,
         cwd=ROOT,
-        check=True,
     )
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
 
 
 if __name__ == "__main__":

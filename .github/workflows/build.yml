@@ -67,7 +67,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev build-essential ccache libltdl-dev libdouble-conversion3 libxkbcommon0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-render-util0
+          sudo apt-get install -y openjdk-17-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev build-essential libltdl-dev libdouble-conversion3 libxkbcommon0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-render-util0
 
       - name: Sync dependencies (android)
         run: uv sync --group android
@@ -96,6 +96,15 @@ jobs:
           BUILD_TARGET: android
           BUILD_ARCH: aarch64
         run: uv run build.py
+
+      - name: Dump config.log on failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          find .buildozer -name config.log -print 2>/dev/null | while read -r f; do
+            echo "===== $f ====="
+            tail -n 60 "$f"
+          done
 
       - name: Package
         run: |
