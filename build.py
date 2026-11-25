@@ -81,6 +81,13 @@ def main():
             cmd += ["--wheel-pyside", wheel_pyside]
         if wheel_shiboken:
             cmd += ["--wheel-shiboken", wheel_shiboken]
+        # SDK/NDKが環境変数にあれば明示的に渡す（build-tools入りSDK）
+        sdk_path = os.environ.get("ANDROID_SDK_ROOT")
+        ndk_path = os.environ.get("ANDROID_NDK_HOME")
+        if sdk_path:
+            cmd += ["--sdk-path", sdk_path]
+        if ndk_path:
+            cmd += ["--ndk-path", ndk_path]
         subprocess.run(cmd, cwd=ROOT, check=True)
         return
 
