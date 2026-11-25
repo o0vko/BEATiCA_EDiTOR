@@ -22,7 +22,6 @@ def main():
         raise FileNotFoundError(CONFIG_PATH)
 
     if target == "android":
-        import shutil
         import urllib.request
 
         icon_path = ROOT / "res" / "icon.png"
@@ -63,18 +62,21 @@ def main():
                 wheel_shiboken = str(ROOT / shiboken_name)
                 break
 
-        android_deploy = shutil.which("pyside6-android-deploy")
-        if not android_deploy:
-            candidate = ROOT / ".venv" / "bin" / "pyside6-android-deploy"
-            if candidate.is_file():
-                android_deploy = str(candidate)
-        if not android_deploy:
-            raise RuntimeError(
-                "pyside6-android-deploy が見つかりません。"
-                "uv sync --group android を実行してください。"
-            )
+        # pyside6-android-deploy を必ず使う（buildozerは使わない）
+        import shutil
+        import sys
 
-        cmd = [android_deploy, "-c", str(CONFIG_PATH)]
+        android_deploy = shutil.which("pyside6-android-deploy")
+        if android_deploy:
+            cmd = [android_deploy, "-c", str(CONFIG_PATH)]
+        else:
+            cmd = [
+                sys.executable,
+                "-m",
+                "PySide6.scripts.android_deploy",
+                "-c",
+                str(CONFIG_PATH),
+            ]
         if wheel_pyside:
             cmd += ["--wheel-pyside", wheel_pyside]
         if wheel_shiboken:
