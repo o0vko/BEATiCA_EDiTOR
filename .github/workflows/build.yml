@@ -83,10 +83,12 @@ jobs:
           set -euo pipefail
           mkdir -p release
           shopt -s nullglob
-          files=(dist/*.apk dist/*.aab bin/*.apk)
+          files=( $(find . -path ./.venv -prune -o -name '*.apk' -print) $(find . -path ./.venv -prune -o -name '*.aab' -print) )
           for f in "${files[@]}"; do
             cp "$f" "release/BEATiCA-EDiTOR-android-$(basename "$f")"
           done
+          ls -la release
+          echo "APK/AAB count: ${#files[@]}"
           tar -czf BEATiCA-EDiTOR-android.tar.gz -C release .
 
       - name: Upload artifact

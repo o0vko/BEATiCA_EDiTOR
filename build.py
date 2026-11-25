@@ -64,22 +64,22 @@ def main():
                 break
 
         android_deploy = shutil.which("pyside6-android-deploy")
-        if android_deploy:
-            cmd = [android_deploy, "-c", str(CONFIG_PATH)]
-            if wheel_pyside:
-                cmd += ["--wheel-pyside", wheel_pyside]
-            if wheel_shiboken:
-                cmd += ["--wheel-shiboken", wheel_shiboken]
-            subprocess.run(cmd, cwd=ROOT, check=True)
-            return
-
-        buildozer = shutil.which("buildozer")
-        if buildozer is None:
+        if not android_deploy:
+            candidate = ROOT / ".venv" / "bin" / "pyside6-android-deploy"
+            if candidate.is_file():
+                android_deploy = str(candidate)
+        if not android_deploy:
             raise RuntimeError(
-                "Androidビルドには pyside6-android-deploy が必要です。"
-                "uv sync --group android で導入してください。"
+                "pyside6-android-deploy が見つかりません。"
+                "uv sync --group android を実行してください。"
             )
-        subprocess.run([buildozer, "android", "debug"], cwd=ROOT, check=True)
+
+        cmd = [android_deploy, "-c", str(CONFIG_PATH)]
+        if wheel_pyside:
+            cmd += ["--wheel-pyside", wheel_pyside]
+        if wheel_shiboken:
+            cmd += ["--wheel-shiboken", wheel_shiboken]
+        subprocess.run(cmd, cwd=ROOT, check=True)
         return
 
     system = platform.system()
