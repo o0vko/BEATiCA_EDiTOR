@@ -118,31 +118,16 @@ jobs:
             tail -n 40 "$f" 2>/dev/null || true
           done
 
-      - name: Debug Android compiler
+      - name: Inspect Android toolchain
         if: always()
         run: |
-          NDK="$ANDROID_NDK_HOME"
-          [ -d "$NDK" ] || NDK="$ANDROID_NDK_ROOT"
-          [ -d "$NDK" ] || NDK="$ANDROID_HOME/ndk/27.3.13750724"
+          BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
       
-          CLANG="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/clang"
-      
-          echo "== NDK =="
-          echo "$NDK"
+          echo "== Android clang binaries =="
+          ls -l "$BIN"/aarch64-linux-android*-clang*
       
           echo "== Clang version =="
-          "$CLANG" --version
-      
-          echo "== Compiler test =="
-          echo 'int main(void) { return 0; }' > /tmp/test.c
-      
-          "$CLANG" \
-            -target aarch64-linux-android28 \
-            -fomit-frame-pointer \
-            -march=armv8-a \
-            -fPIC \
-            /tmp/test.c \
-            -o /tmp/test
+          "$BIN/clang" --version
 
       - name: Package
         run: |
