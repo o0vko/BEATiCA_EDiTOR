@@ -83,6 +83,12 @@ jobs:
           yes | "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" --licenses >/dev/null 2>&1 || true
           "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
           "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" "ndk;28.2.13676358"
+          # buildozerは旧パス tools/bin/sdkmanager を参照するためシンボリックリンクを張る
+          mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
+          for tool in sdkmanager avdmanager lint retrace; do
+            src="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/$tool"
+            [ -f "$src" ] && ln -sf "$src" "$ANDROID_SDK_ROOT/tools/bin/$tool"
+          done
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
 
       - name: Build
