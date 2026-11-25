@@ -100,10 +100,13 @@ jobs:
       - name: Dump config.log on failure
         if: failure()
         run: |
-          set -euo pipefail
-          find .buildozer -name config.log -print 2>/dev/null | while read -r f; do
+          set -uo pipefail
+          echo "== .buildozer tree =="
+          find .buildozer -maxdepth 6 -type d 2>/dev/null | head -50 || true
+          echo "== config.log search =="
+          find . "$HOME" -name config.log 2>/dev/null | while read -r f; do
             echo "===== $f ====="
-            tail -n 60 "$f"
+            tail -n 80 "$f" 2>/dev/null || true
           done
 
       - name: Package

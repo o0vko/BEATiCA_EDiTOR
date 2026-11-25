@@ -89,8 +89,17 @@ def main():
         if ndk_path:
             cmd += ["--ndk-path", ndk_path]
         result = subprocess.run(cmd, check=False, cwd=ROOT)
-        if result.returncode != 0:
-            print(f"[ANDROID] android-deploy failed (code {result.returncode})")
+        # 終了コード、または成果物(apk/aab)が無ければ失敗扱い
+        import glob
+
+        produced = glob.glob(str(ROOT / "dist" / "*.apk")) + glob.glob(
+            str(ROOT / "dist" / "*.aab")
+        )
+        if result.returncode != 0 or not produced:
+            print(
+                f"[ANDROID] failed (code {result.returncode}, "
+                f"apk/aab={len(produced)})"
+            )
             sys.exit(1)
         return
 
