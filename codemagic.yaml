@@ -1,9 +1,7 @@
 workflows:
   windows:
     name: Windows
-    instance_type: codemagic-windows-2024
-    when:
-      branch: main
+    instance_type: windows_x2
     scripts:
       - name: Install uv
         script: python -m pip install --upgrade uv
@@ -17,16 +15,16 @@ workflows:
     artifacts:
       - BEATiCA-EDiTOR-windows.tar.gz
     publishing:
-      discord:
-        webhook_url: $DISCORD_WEBHOOK_URL
-        files:
-          - BEATiCA-EDiTOR-windows.tar.gz
+      scripts:
+        - name: Discord
+          script: |
+            if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+              curl -sS -F "payload_json={\"content\":\"BEATiCA EDiTOR Windows build\"}" -F "files=@BEATiCA-EDiTOR-windows.tar.gz" "$DISCORD_WEBHOOK_URL"
+            fi
 
   macos:
     name: macOS
-    instance_type: macos-x2
-    when:
-      branch: main
+    instance_type: mac_mini_m2
     scripts:
       - name: Install uv
         script: python3 -m pip install --upgrade uv
@@ -40,16 +38,16 @@ workflows:
     artifacts:
       - BEATiCA-EDiTOR-macos.tar.gz
     publishing:
-      discord:
-        webhook_url: $DISCORD_WEBHOOK_URL
-        files:
-          - BEATiCA-EDiTOR-macos.tar.gz
+      scripts:
+        - name: Discord
+          script: |
+            if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+              curl -sS -F "payload_json={\"content\":\"BEATiCA EDiTOR macOS build\"}" -F "files=@BEATiCA-EDiTOR-macos.tar.gz" "$DISCORD_WEBHOOK_URL"
+            fi
 
   linux:
     name: Linux
-    instance_type: ubuntu-2404
-    when:
-      branch: main
+    instance_type: linux_x2
     scripts:
       - name: Install uv
         script: python3 -m pip install --upgrade uv
@@ -63,20 +61,19 @@ workflows:
     artifacts:
       - BEATiCA-EDiTOR-linux.tar.gz
     publishing:
-      discord:
-        webhook_url: $DISCORD_WEBHOOK_URL
-        files:
-          - BEATiCA-EDiTOR-linux.tar.gz
+      scripts:
+        - name: Discord
+          script: |
+            if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+              curl -sS -F "payload_json={\"content\":\"BEATiCA EDiTOR Linux build\"}" -F "files=@BEATiCA-EDiTOR-linux.tar.gz" "$DISCORD_WEBHOOK_URL"
+            fi
 
   android:
     name: Android
-    instance_type: ubuntu-2404
-    when:
-      branch: main
+    instance_type: linux_x2
     environment:
       BUILD_TARGET: android
       BUILD_ARCH: aarch64
-      # buildozer/qtpip が参照するAndroid SDK/NDK
       ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT
       ANDROID_NDK_HOME: $ANDROID_NDK_HOME
     scripts:
@@ -97,7 +94,11 @@ workflows:
       - BEATiCA-EDiTOR-android-*.apk
       - BEATiCA-EDiTOR-android-*.aab
     publishing:
-      discord:
-        webhook_url: $DISCORD_WEBHOOK_URL
-        files:
-          - BEATiCA-EDiTOR-android-*.apk
+      scripts:
+        - name: Discord
+          script: |
+            if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+              for f in BEATiCA-EDiTOR-android-*.apk; do
+                [ -f "$f" ] && curl -sS -F "payload_json={\"content\":\"BEATiCA EDiTOR Android build\"}" -F "files=@$f" "$DISCORD_WEBHOOK_URL"
+              done
+            fi
