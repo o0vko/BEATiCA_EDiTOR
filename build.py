@@ -22,8 +22,8 @@ def main():
         raise FileNotFoundError(CONFIG_PATH)
 
     if target == "android":
-        import glob
         import shutil
+        import urllib.request
 
         icon_path = ROOT / "res" / "icon.png"
         if not icon_path.is_file():
@@ -33,23 +33,37 @@ def main():
             config.write(f)
 
         arch = os.environ.get("BUILD_ARCH", "aarch64")
+        import PySide6
+
+        version = PySide6.__version__
+        base = "https://download.qt.io/official_releases/QtForPython"
+
+        def download(url: str, dest: Path) -> bool:
+            try:
+                print(f"[ANDROID] Downloading {url}")
+                urllib.request.urlretrieve(url, dest)
+                return True
+            except Exception as e:  # noqa: BLE001
+                print(f"[ANDROID] Failed to download {url}: {e}")
+                return False
+
+        # PySide6 / shiboken6 のAndroid wheelを取得（cpタグは候補を順に試す）
+        wheel_pyside = wheel_shiboken = None
+        for tag in ("cp310-abi3", "cp311-cp311", "cp39-abi3"):
+            pyside_name = f"pyside6-{version}-{version}-{tag}-android_{arch}.whl"
+            shiboken_name = (
+                f"shiboken6-{version}-{version}-{tag}-android_{arch}.whl"
+            )
+            pyside_ok = download(f"{base}/pyside6/{pyside_name}", ROOT / pyside_name)
+            shiboken_ok = download(
+                f"{base}/shiboken6/{shiboken_name}", ROOT / shiboken_name
+            )
+            if pyside_ok and shiboken_ok:
+                wheel_pyside = str(ROOT / pyside_name)
+                wheel_shiboken = str(ROOT / shiboken_name)
+                break
 
         android_deploy = shutil.which("pyside6-android-deploy")
-        qtpip = shutil.which("qtpip")
-
-        # 1) Android用PySide6 wheelを取得（qtpip）
-        wheel_pyside = wheel_shiboken = None
-        if qtpip is not None:
-            subprocess.run(
-                [qtpip, "download", "PySide6", "--android", "--arch", arch],
-                cwd=ROOT,
-                check=True,
-            )
-            pyside = sorted(glob.glob(str(ROOT / "PySide6-*.whl")))
-            shiboken = sorted(glob.glob(str(ROOT / "shiboken6-*.whl")))
-            wheel_pyside = pyside[-1] if pyside else None
-            wheel_shiboken = shiboken[-1] if shiboken else None
-
         if android_deploy:
             cmd = [android_deploy, "-c", str(CONFIG_PATH)]
             if wheel_pyside:
@@ -59,11 +73,10 @@ def main():
             subprocess.run(cmd, cwd=ROOT, check=True)
             return
 
-        # pyside6-android-deployが無い場合はbuildozerでビルド
         buildozer = shutil.which("buildozer")
         if buildozer is None:
             raise RuntimeError(
-                "Androidビルドには pyside6-android-deploy か (qtpip + buildozer) が必要です。"
+                "Androidビルドには pyside6-android-deploy が必要です。"
                 "uv sync --group android で導入してください。"
             )
         subprocess.run([buildozer, "android", "debug"], cwd=ROOT, check=True)
