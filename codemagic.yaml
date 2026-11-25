@@ -47,7 +47,7 @@ workflows:
 
   linux:
     name: Linux
-    instance_type: linux_x2
+    instance_type: linux
     scripts:
       - name: Install uv
         script: python3 -m pip install --upgrade uv
@@ -70,7 +70,7 @@ workflows:
 
   android:
     name: Android
-    instance_type: linux_x2
+    instance_type: linux
     environment:
       vars:
         BUILD_TARGET: android
