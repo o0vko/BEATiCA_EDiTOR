@@ -89,6 +89,10 @@ jobs:
             [ -f "$src" ] && ln -sf "$src" "$ANDROID_SDK_ROOT/tools/bin/$tool"
           done
           # NDKはシステム既定(27.3)を使用（r28cは上書きしない）
+          # NDK/ビルドツールに実行権限を付与（無いとlinkerが失敗する）
+          chmod +x -R "$ANDROID_SDK_ROOT/ndk" 2>/dev/null || true
+          chmod +x -R "$ANDROID_SDK_ROOT/build-tools" 2>/dev/null || true
+          chmod +x -R "$ANDROID_SDK_ROOT/platform-tools" 2>/dev/null || true
 
       - name: Build
         env:
