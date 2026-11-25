@@ -129,6 +129,32 @@ jobs:
           echo "== Clang version =="
           "$BIN/clang" --version
 
+      - name: Debug Android compiler
+        if: always()
+        run: |
+          set +e
+      
+          NDK="$ANDROID_NDK_HOME"
+          BIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          CLANG="$BIN/clang"
+      
+          echo 'int main(void) { return 0; }' > /tmp/test.c
+      
+          echo "== Android target compiler =="
+          ls -l "$BIN"/aarch64-linux-android*-clang*
+      
+          echo "== Compile test =="
+          "$CLANG" \
+            --target=aarch64-linux-android28 \
+            /tmp/test.c \
+            -o /tmp/test 2>&1
+      
+          RESULT=$?
+          echo "Compiler exit code: $RESULT"
+      
+          echo "== Output file =="
+          ls -l /tmp/test 2>&1 || true
+
       - name: Package
         run: |
           set -euo pipefail
