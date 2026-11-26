@@ -117,7 +117,13 @@ class FrontViewWidget(QWidget):
                 if b.beat == a.beat:
                     return getattr(b, attr)
                 t = (beat - a.beat) / (b.beat - a.beat)
-                eased = _ease(curveType, t)
+                # スカイノーツは lane と positionY で別々の曲線を持てる。
+                # 未設定（旧データ）の場合はノーツ側の curveType にフォールバック。
+                if attr == "lane":
+                    segmentCurve = a.laneCurveType or curveType
+                else:
+                    segmentCurve = a.positionYCurveType or curveType
+                eased = _ease(segmentCurve, t)
                 va = getattr(a, attr)
                 vb = getattr(b, attr)
                 return va + (vb - va) * eased

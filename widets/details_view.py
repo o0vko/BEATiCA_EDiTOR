@@ -32,6 +32,8 @@ class DetailsViewWidget(QWidget):
     detachSkyNoteRequested = Signal()
     addKnotRequested = Signal()
     removeKnotRequested = Signal()
+    # 選択中knotの補間曲線（lane用とpositionY用）を変更
+    skyKnotCurveChanged = Signal(int, CurveType, CurveType)
 
     def __init__(self, editing: EditingChart):
         super().__init__()
@@ -279,6 +281,23 @@ class DetailsViewWidget(QWidget):
         self.knotList.itemSelectionChanged.connect(self.onKnotSelectionChanged)
         layout.addWidget(self.knotList)
 
+        # knot から次の knot への補間曲線（lane と positionY を個別に指定）
+        self.knotLaneCurveLabel = QLabel("スカイ曲線 (lane)")
+        self.knotLaneCurveCombo = QComboBox()
+        for curve in CurveType:
+            self.knotLaneCurveCombo.addItem(curve.name, curve)
+        self.knotLaneCurveCombo.activated.connect(self.onKnotCurveChanged)
+        layout.addWidget(self.knotLaneCurveLabel)
+        layout.addWidget(self.knotLaneCurveCombo)
+
+        self.knotPositionCurveLabel = QLabel("スカイ曲線 (Y)")
+        self.knotPositionCurveCombo = QComboBox()
+        for curve in CurveType:
+            self.knotPositionCurveCombo.addItem(curve.name, curve)
+        self.knotPositionCurveCombo.activated.connect(self.onKnotCurveChanged)
+        layout.addWidget(self.knotPositionCurveLabel)
+        layout.addWidget(self.knotPositionCurveCombo)
+
         knotButtonRow = QHBoxLayout()
         self.addKnotButton = QPushButton("追加")
         self.addKnotButton.clicked.connect(self.addKnotRequested.emit)
@@ -309,6 +328,34 @@ class DetailsViewWidget(QWidget):
     def onKnotSelectionChanged(self):
         row = self.knotList.currentRow()
         self.editing.selectedKnotIndex = row if row >= 0 else None
+        self.refreshKnotCurveControls()
+
+    def onKnotCurveChanged(self, index: int):
+        row = self.editing.selectedKnotIndex
+        if row is None or row < 0:
+            return
+        laneCurve = self.knotLaneCurveCombo.itemData(index)
+        positionCurve = self.knotPositionCurveCombo.itemData(index)
+        self.skyKnotCurveChanged.emit(row, laneCurve, positionCurve)
+
+    def refreshKnotCurveControls(self):
+        """選択中knotの補間曲線コンボを現在値に合わせる"""
+        _note, skyNote = self.editing.selectedSkyNote()
+        row = self.editing.selectedKnotIndex
+        floatings = skyNote.floatings if skyNote is not None else []
+        enabled = bool(floatings) and row is not None and 0 <= row < len(floatings)
+        for combo in (self.knotLaneCurveCombo, self.knotPositionCurveCombo):
+            combo.setEnabled(enabled)
+        if not enabled:
+            return
+        floating = floatings[row]
+        for combo, curve in (
+            (self.knotLaneCurveCombo, floating.laneCurveType),
+            (self.knotPositionCurveCombo, floating.positionYCurveType),
+        ):
+            combo.blockSignals(True)
+            combo.setCurrentText(curve.name)
+            combo.blockSignals(False)
 
     def refreshKnotList(self):
         """選択スカイノーツのknot一覧を更新"""
@@ -319,11 +366,13 @@ class DetailsViewWidget(QWidget):
             for i, f in enumerate(skyNote.floatings):
                 self.knotList.addItem(
                     f"#{i}  beat={f.beat:.3f}  lane={f.lane:.2f}  Y={f.positionY:.2f}"
+                    f"  [{f.laneCurveType.name}/{f.positionYCurveType.name}]"
                 )
             idx = self.editing.selectedKnotIndex
             if idx is not None and 0 <= idx < self.knotList.count():
                 self.knotList.setCurrentRow(idx)
         self.knotList.blockSignals(False)
+        self.refreshKnotCurveControls()
 
     def onBeatChanged(self, value: float):
         for note in self.editing.selectedNotes:
@@ -434,6 +483,10 @@ class DetailsViewWidget(QWidget):
         self.detachSkyButton.setVisible(anySky)
         self.knotLabel.setVisible(hasSky)
         self.knotList.setVisible(hasSky)
+        self.knotLaneCurveLabel.setVisible(hasSky)
+        self.knotLaneCurveCombo.setVisible(hasSky)
+        self.knotPositionCurveLabel.setVisible(hasSky)
+        self.knotPositionCurveCombo.setVisible(hasSky)
         self.addKnotButton.setVisible(hasSky)
         self.removeKnotButton.setVisible(hasSky)
         self.addKnotButton.setEnabled(hasSky)
@@ -476,6 +529,10 @@ class DetailsViewWidget(QWidget):
             self.detachSkyButton,
             self.knotLabel,
             self.knotList,
+            self.knotLaneCurveLabel,
+            self.knotLaneCurveCombo,
+            self.knotPositionCurveLabel,
+            self.knotPositionCurveCombo,
             self.addKnotButton,
             self.removeKnotButton,
         ):

@@ -473,6 +473,9 @@ class MainWindow(QMainWindow):
             self.chartAreaCanvas.removeSelectedKnot
         )
         self.chartAreaCanvas.skyKnotsChanged.connect(self.detailsView.refreshKnotList)
+        self.detailsView.skyKnotCurveChanged.connect(
+            self.chartAreaCanvas.setSkyKnotCurve
+        )
 
         # 初期の表示設定を反映
         self.chartAreaCanvas.emitViewSettings()

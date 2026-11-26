@@ -1,5 +1,4 @@
 import enum
-import struct
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -28,35 +27,7 @@ class Chart:
     globalChanges: list[Change] = field(default_factory=list)
 
     def export(self, path: Path):
-        with open(path, "wb") as f:
-            # マジックバイト&バージョンを挿入する
-            f.write(b"BEATiCA")
-            f.write(self.version.to_bytes(byteorder="little"))
+        # 読み込み側が version で分岐できるよう、書き込みも serialize に集約する
+        from objects.serialize import writeBinary
 
-            # 譜面情報を書き込む
-            f.write(self.id.encode("utf-8"))
-            f.write(self.difficultyType.value.to_bytes(byteorder="little"))
-            f.write(self.difficulty.major.to_bytes(byteorder="little"))
-            f.write(self.difficulty.minor.to_bytes(byteorder="little"))
-            f.write(struct.pack("<f", self.offset))
-
-            # ノーツ情報を書き込む
-            f.write(len(self.notes).to_bytes(byteorder="little"))
-            for note in self.notes:
-                f.writelines(note.toBytes())
-
-            f.write(len(self.longNotes).to_bytes(byteorder="little"))
-            for longNote in self.longNotes:
-                f.writelines(longNote.toBytes())
-
-            f.write(len(self.skyNotes).to_bytes(byteorder="little"))
-            for skyNote in self.skyNotes:
-                f.writelines(skyNote.toBytes())
-
-            f.write(len(self.layers).to_bytes(byteorder="little"))
-            for layer in self.layers:
-                f.writelines(layer.toBytes())
-
-            f.write(len(self.globalChanges).to_bytes(byteorder="little"))
-            for changes in self.globalChanges:
-                f.writelines(changes.toBytes())
+        writeBinary(self, path)

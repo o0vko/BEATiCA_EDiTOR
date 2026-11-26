@@ -1125,6 +1125,19 @@ class ChartViewWidget(QWidget):
         if idx is not None:
             self.removeKnot(idx)
 
+    def setSkyKnotCurve(
+        self, index: int, laneCurve: CurveType, positionCurve: CurveType
+    ):
+        """選択スカイノーツのknotの補間曲線を更新（lane/Y 個別）"""
+        _note, skyNote = self.editing.selectedSkyNote()
+        if skyNote is None or not (0 <= index < len(skyNote.floatings)):
+            return
+        floating = skyNote.floatings[index]
+        floating.laneCurveType = laneCurve
+        floating.positionYCurveType = positionCurve
+        self.skyKnotsChanged.emit()
+        self.update()
+
     def drawRubber(self, painter: QPainter):
         if self.rubberRect is None:
             return

@@ -79,11 +79,17 @@ class SkyNoteFloating:
     beat: float
     lane: float
     positionY: float  # 浮動位置のY座標（5.0でちょうど1）
+    # この点から次の点までの補間に使う曲線（lane と positionY で独立に指定）
+    laneCurveType: CurveType = CurveType.linear
+    positionYCurveType: CurveType = CurveType.linear
 
     def toBytes(self) -> list[bytes]:
         return [
             struct.pack("<f", self.beat),
+            struct.pack("<f", self.lane),
             struct.pack("<f", self.positionY),
+            self.laneCurveType.value.to_bytes(4, "little"),
+            self.positionYCurveType.value.to_bytes(4, "little"),
         ]
 
 
@@ -118,9 +124,9 @@ class Note:
             struct.pack("<f", self.beat),
             struct.pack("<f", self.lane),
             struct.pack("<f", self.width),
-            self.curveType.value.to_bytes(byteorder="little"),
-            self.flickType.value.to_bytes(byteorder="little"),
-            self.flag.value.to_bytes(byteorder="little"),
+            self.curveType.value.to_bytes(4, "little"),
+            self.flickType.value.to_bytes(4, "little"),
+            self.flag.value.to_bytes(4, "little"),
             self.layer.to_bytes(4, "little"),
             self.skyNote.to_bytes(4, "little"),
         ]
