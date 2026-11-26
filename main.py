@@ -35,6 +35,13 @@ ICON_SIZES = {"small": 20, "medium": 32, "large": 48}
 IS_ANDROID = "ANDROID_PRIVATE" in os.environ or hasattr(sys, "getandroidapkpath")
 
 
+def fileDialogOptions() -> QFileDialog.Options:
+    """Android のネイティブダイアログはキャンセルで固まるためアプリ内で描画する"""
+    if IS_ANDROID:
+        return QFileDialog.Option.DontUseNativeDialog
+    return QFileDialog.Options()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -196,7 +203,11 @@ class MainWindow(QMainWindow):
     # --- ファイル操作 ---
     def importAudio(self):
         filename, _ = QFileDialog.getOpenFileName(
-            self, "音声ファイルを開く", "", "音声ファイル (*.wav *.ogg *.mp3)"
+            self,
+            "音声ファイルを開く",
+            "",
+            "音声ファイル (*.wav *.ogg *.mp3)",
+            options=fileDialogOptions(),
         )
         if filename:
             self.bgmPath = filename
@@ -205,7 +216,11 @@ class MainWindow(QMainWindow):
 
     def saveProject(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "プロジェクトを保存", "", "BEATiCA Project (*.beaproj)"
+            self,
+            "プロジェクトを保存",
+            "",
+            "BEATiCA Project (*.beaproj)",
+            options=fileDialogOptions(),
         )
         if not path:
             return
@@ -216,7 +231,11 @@ class MainWindow(QMainWindow):
 
     def loadProject(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "プロジェクトを開く", "", "BEATiCA Project (*.beaproj)"
+            self,
+            "プロジェクトを開く",
+            "",
+            "BEATiCA Project (*.beaproj)",
+            options=fileDialogOptions(),
         )
         if not path:
             return
@@ -231,7 +250,11 @@ class MainWindow(QMainWindow):
 
     def exportBinary(self):
         path, _ = QFileDialog.getSaveFileName(
-            self, "本番書き出し", "", "BEATiCA Chart (*.bea)"
+            self,
+            "本番書き出し",
+            "",
+            "BEATiCA Chart (*.bea)",
+            options=fileDialogOptions(),
         )
         if not path:
             return
