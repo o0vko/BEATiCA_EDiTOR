@@ -1,7 +1,7 @@
 import itertools
 
 from PySide6.QtCore import QPoint, Qt, QTimer
-from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPainterPath, QPen, QPixmap
 from PySide6.QtWidgets import QWidget
 
 from etc import constants as Const
@@ -210,7 +210,81 @@ class FrontViewWidget(QWidget):
             posY = self.getSkyPositionYAt(skyNote, currentBeat, startNote.curveType)
             self._paintSky(painter, startNote, skyNote, self.laneToX(lane), posY)
 
+        # スカイノーツの制御点（knot）をノーツとして表示
+        self._drawSkyKnots(painter)
+
         painter.end()
+
+    def _drawSkyKnots(self, painter: QPainter):
+        """スカイノーツのknotをノーツ絵で描画（選択中は強調）"""
+        selectedIndex = self.editing.selectedKnotIndex
+        selectedSky = None
+        if self.chartView is not None:
+            _note, selectedSky = self.editing.selectedSkyNote()
+
+        h = Const.NOTE_WIDTH
+        w = 4 * self._laneWidth()
+        for skyNote in self.editing.chart.skyNotes:
+            isSelectedSky = skyNote is selectedSky
+            ordered = sorted(skyNote.floatings, key=lambda f: f.beat)
+
+            # 軌跡（knot 同士を結ぶ曲線）
+            if len(ordered) >= 2:
+                path = QPainterPath()
+                first = True
+                for a, b in itertools.pairwise(ordered):
+                    if b.beat == a.beat:
+                        continue
+                    for i in range(17):
+                        t = i / 16
+                        eased = _ease(
+                            a.laneCurveType or CurveType.linear, t
+                        )
+                        lane = a.lane + (b.lane - a.lane) * eased
+                        posYEased = _ease(
+                            a.positionYCurveType or CurveType.linear, t
+                        )
+                        posY = a.positionY + (b.positionY - a.positionY) * posYEased
+                        x = self.laneToX(lane)
+                        y = self.positionYToY(posY)
+                        if first:
+                            path.moveTo(x, y)
+                            first = False
+                        else:
+                            path.lineTo(x, y)
+                if not first:
+                    painter.save()
+                    painter.setPen(
+                        QPen(QColor("#0ff"), 2 if isSelectedSky else 1)
+                    )
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.drawPath(path)
+                    painter.restore()
+
+            for index, f in enumerate(ordered):
+                x = self.laneToX(f.lane) - w / 2
+                y = self.positionYToY(f.positionY) - h / 2
+                pixmap = self.skyNotePixMap
+                if not pixmap.isNull():
+                    scaled = pixmap.scaled(
+                        round(w),
+                        h,
+                        Qt.AspectRatioMode.IgnoreAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                    painter.drawPixmap(QPoint(round(x), round(y)), scaled)
+                else:
+                    painter.setBrush(QColor("#4aa3ff"))
+                    painter.drawRect(round(x), round(y), round(w), h)
+
+                if isSelectedSky and index == selectedIndex:
+                    painter.save()
+                    painter.setPen(QPen(QColor("#ff0"), 2))
+                    painter.setBrush(Qt.BrushStyle.NoBrush)
+                    painter.drawRect(
+                        round(x) - 2, round(y) - 2, round(w) + 4, h + 4
+                    )
+                    painter.restore()
 
     def _paintSky(self, painter: QPainter, note, skyNote, x: float, posY: float):
         """スカイノーツのマーカーとYPositionを描画"""

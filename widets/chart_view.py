@@ -1,3 +1,4 @@
+import itertools
 import math
 from array import array
 
@@ -1198,6 +1199,42 @@ class ChartViewWidget(QWidget):
         painter.setPen(QPen(QColor("#4af"), 1, Qt.PenStyle.DashLine))
         painter.setBrush(QColor(74, 170, 255, 60))
         painter.drawRect(self.rubberRect)
+        painter.restore()
+
+    def drawSkyCurve(self, painter: QPainter):
+        """選択スカイノーツの lane カーブを曲線として描画（拍→lane）"""
+        _note, skyNote = self.editing.selectedSkyNote()
+        if skyNote is None or len(skyNote.floatings) < 2:
+            return
+
+        ordered = sorted(skyNote.floatings, key=lambda f: f.beat)
+        path = QPainterPath()
+        first = True
+        for a, b in itertools.pairwise(ordered):
+            if b.beat == a.beat:
+                continue
+            easeFunc = self._getEaseFunction(a.laneCurveType or CurveType.linear)
+            # セグメントを分割して曲線を近似（拍方向は等間隔）
+            steps = 24
+            for i in range(steps + 1):
+                t = i / steps
+                lane = a.lane + (b.lane - a.lane) * easeFunc(t)
+                beat = a.beat + (b.beat - a.beat) * t
+                x = self.getXPointFromLane(lane)
+                y = self.getYPointFromBeat(beat)
+                if first:
+                    path.moveTo(x, y)
+                    first = False
+                else:
+                    path.lineTo(x, y)
+
+        if first:
+            return
+
+        painter.save()
+        painter.setPen(QPen(QColor("#0ff"), 2))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(path)
         painter.restore()
 
     def drawKnotHandles(self, painter: QPainter):
@@ -2662,6 +2699,7 @@ class ChartViewWidget(QWidget):
         self.drawBeatLine(painter)
         self.drawMeasureLabels(painter, center)
         self.drawNotes(painter)
+        self.drawSkyCurve(painter)
         self.drawKnotHandles(painter)
         self.drawRubber(painter)
         self.drawHoverPreview(painter, center)
