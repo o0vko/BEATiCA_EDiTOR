@@ -14,7 +14,10 @@ loaded through the FFmpeg plugin's DT_NEEDED entries, so nothing is lost.
 The wrapper also appends the pure Python requirements listed in
 ``BEATiCA_ANDROID_REQUIREMENTS`` to buildozer's ``app.requirements``, because
 pyside6-android-deploy hardcodes ``python3,shiboken6,PySide6`` and would
-otherwise ship an APK without the app's own dependencies.
+otherwise ship an APK without the app's own dependencies.  For the same reason
+``BEATiCA_ANDROID_INCLUDE_EXTS`` extends ``app.source.include_exts``, which
+defaults to ``py,png,jpg,kv,atlas`` and silently drops files such as
+``assets/sounds/*.wav``.
 
 This wrapper can be removed once the host PySide6 includes the upstream fix
 (6.12.1 and later).
@@ -93,7 +96,42 @@ def _install_requirements_workaround() -> None:
     BuildozerConfig._extra_requirements_workaround = True
 
 
+def _install_include_exts_workaround() -> None:
+    if getattr(BuildozerConfig, "_extra_include_exts_workaround", False):
+        return
+
+    original_init = BuildozerConfig.__init__
+
+    def __init__(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        extra = [
+            extension.strip().lstrip(".")
+            for extension in os.environ.get(
+                "BEATiCA_ANDROID_INCLUDE_EXTS", ""
+            ).split(",")
+            if extension.strip()
+        ]
+        if not extra:
+            return
+        current = (
+            self.get_value("app", "source.include_exts", ignore_fail=True) or ""
+        )
+        merged = list(
+            dict.fromkeys(
+                [item.strip() for item in current.split(",") if item.strip()] + extra
+            )
+        )
+        self.set_value("app", "source.include_exts", ",".join(merged))
+        # BuildozerConfig writes the spec file at the end of __init__; rewrite it
+        # so the extra extensions reach buildozer.
+        self.update_config()
+
+    BuildozerConfig.__init__ = __init__
+    BuildozerConfig._extra_include_exts_workaround = True
+
+
 _install_workaround()
 _install_requirements_workaround()
+_install_include_exts_workaround()
 
 runpy.run_path(str(scripts_dir / "android_deploy.py"), run_name="__main__")

@@ -16,6 +16,10 @@ CONFIG_PATH = ROOT / "pysidedeploy.spec"
 # and installed by python-for-android's pip step.
 ANDROID_REQUIREMENTS = "qtawesome,qtpy"
 
+# File extensions p4a must copy into the APK.  Its default list
+# (py,png,jpg,kv,atlas) drops the app's sound effects.
+ANDROID_INCLUDE_EXTS = "wav"
+
 
 def verify_android_apk(apk: Path) -> None:
     """Make sure QtLoader cannot reference a native library missing from the APK."""
@@ -134,6 +138,7 @@ def main():
         # pure Python dependencies have to be appended by the wrapper.
         env = os.environ.copy()
         env["BEATiCA_ANDROID_REQUIREMENTS"] = ANDROID_REQUIREMENTS
+        env["BEATiCA_ANDROID_INCLUDE_EXTS"] = ANDROID_INCLUDE_EXTS
         if wheel_pyside:
             cmd += ["--wheel-pyside", wheel_pyside]
         if wheel_shiboken:
