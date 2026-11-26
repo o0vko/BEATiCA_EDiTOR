@@ -106,7 +106,10 @@ jobs:
           # libffiの "C compiler cannot create executables" 回避のためAPIレベルを下げる
           ANDROIDMINAPI: "21"
           ANDROID_NDK_API: "21"
-        run: uv run build.py
+        run: |
+          set -uo pipefail
+          trap 'echo "=== TRAP config.log dump ==="; find . "$HOME" -name config.log 2>/dev/null | while read -r f; do echo "===== $f ====="; tail -n 150 "$f" 2>/dev/null || true; done' EXIT
+          uv run build.py
 
       - name: Dump config.log on failure
         if: failure()

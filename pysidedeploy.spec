@@ -39,6 +39,7 @@ extra_args = --quiet --noinclude-qt-translations --include-data-dir=assets=asset
 
 [buildozer]
 mode = debug
+log_level = 2
 recipe_dir = 
 jars_dir = 
 ndk_path = 
