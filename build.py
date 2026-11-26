@@ -1,6 +1,7 @@
 import configparser
 import os
 import platform
+import re
 import subprocess
 from pathlib import Path
 
@@ -9,6 +10,38 @@ import zipfile
 
 ROOT = Path(__file__).parent
 CONFIG_PATH = ROOT / "pysidedeploy.spec"
+
+
+def verify_android_apk(apk: Path) -> None:
+    """Make sure QtLoader cannot reference a native library missing from the APK."""
+    with zipfile.ZipFile(apk) as archive:
+        native_libs = {
+            Path(name).name
+            for name in archive.namelist()
+            if name.startswith("lib/") and name.endswith(".so")
+        }
+        abis = {
+            name.split("/")[1]
+            for name in archive.namelist()
+            if name.startswith("lib/") and name.count("/") >= 2
+        }
+        resources = archive.read("resources.arsc")
+
+    referenced = {
+        match.decode("ascii")
+        for match in re.findall(rb"lib[A-Za-z0-9_.+-]+\.so", resources)
+    }
+    missing = sorted(
+        lib
+        for lib in referenced
+        if any(lib.endswith(f"_{abi}.so") for abi in abis)
+        and lib not in native_libs
+    )
+    if missing:
+        raise RuntimeError(
+            f"{apk.name}: QtLoader references libraries that are not packaged: "
+            + ", ".join(missing)
+        )
 
 ICONS = {
     "Windows": "res/icon.ico",
@@ -81,21 +114,17 @@ def main():
                     ):
                         print(f"[ANDROID DEBUG] {entry}")
 
-        # pyside6-android-deploy を必ず使う（buildozerは使わない）
-        import shutil
+        # pyside6-android-deploy を必ず使う（buildozerは使わない）。
+        # 6.12.0 の FFmpeg ライブラリ名の不具合 (PYSIDE-3501) を避けるため
+        # ラッパー経由で起動する。
         import sys
 
-        android_deploy = shutil.which("pyside6-android-deploy")
-        if android_deploy:
-            cmd = [android_deploy, "-c", str(CONFIG_PATH)]
-        else:
-            cmd = [
-                sys.executable,
-                "-m",
-                "PySide6.scripts.android_deploy",
-                "-c",
-                str(CONFIG_PATH),
-            ]
+        cmd = [
+            sys.executable,
+            str(ROOT / "build_scripts" / "android_deploy_patched.py"),
+            "-c",
+            str(CONFIG_PATH),
+        ]
         if wheel_pyside:
             cmd += ["--wheel-pyside", wheel_pyside]
         if wheel_shiboken:
@@ -121,6 +150,8 @@ def main():
                 f"apk/aab={len(produced)})"
             )
             sys.exit(1)
+        for apk in glob.glob(str(ROOT / "dist" / "*.apk")):
+            verify_android_apk(Path(apk))
         return
 
     system = platform.system()
