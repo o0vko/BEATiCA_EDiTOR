@@ -218,12 +218,24 @@ def build_ios(config) -> None:
     shutil.rmtree(payload, ignore_errors=True)
     payload.mkdir(parents=True)
     shutil.copytree(app_bundle, payload / app_bundle.name)
+    
+    # Qtのビルド中間生成物を除去
+    app_payload = payload / app_bundle.name
+    
+    for directory in list(app_payload.rglob("objects-Release")):
+        if directory.is_dir():
+            shutil.rmtree(directory)
+    
+    for obj in app_payload.rglob("*.o"):
+        if obj.is_file():
+            obj.unlink()
+    
     ipa = ROOT / "dist" / f"{app_name}.ipa"
     if ipa.exists():
         ipa.unlink()
     with zipfile.ZipFile(ipa, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in sorted(payload.rglob("*")):
-            zf.write(path, path.relative_to(payload))
+            zf.write(path, path.relative_to(payload.parent))
     print(f"[IOS] wrote {ipa} ({ipa.stat().st_size} bytes)")
 
 
