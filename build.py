@@ -11,6 +11,11 @@ import zipfile
 ROOT = Path(__file__).parent
 CONFIG_PATH = ROOT / "pysidedeploy.spec"
 
+# Pure Python packages the app imports at runtime.  pyside6-android-deploy only
+# installs python3/shiboken6/PySide6, so these are appended to app.requirements
+# and installed by python-for-android's pip step.
+ANDROID_REQUIREMENTS = "qtawesome,qtpy"
+
 
 def verify_android_apk(apk: Path) -> None:
     """Make sure QtLoader cannot reference a native library missing from the APK."""
@@ -125,6 +130,10 @@ def main():
             "-c",
             str(CONFIG_PATH),
         ]
+        # pyside6-android-deploy hardcodes app.requirements, so the app's own
+        # pure Python dependencies have to be appended by the wrapper.
+        env = os.environ.copy()
+        env["BEATiCA_ANDROID_REQUIREMENTS"] = ANDROID_REQUIREMENTS
         if wheel_pyside:
             cmd += ["--wheel-pyside", wheel_pyside]
         if wheel_shiboken:
@@ -137,7 +146,7 @@ def main():
         if ndk_path:
             cmd += ["--ndk-path", ndk_path]
         # NDK API レベルは buildozer.spec / 環境変数 (ANDROIDMINAPI) 側で制御
-        result = subprocess.run(cmd, check=False, cwd=ROOT)
+        result = subprocess.run(cmd, check=False, cwd=ROOT, env=env)
         # 終了コード、または成果物(apk/aab)が無ければ失敗扱い
         import glob
 

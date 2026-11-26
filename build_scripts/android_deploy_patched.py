@@ -11,12 +11,18 @@ Keep only local libs whose suffixed name really exists in the wheel.  The
 unsuffixed FFmpeg libraries are still packaged by the PySide6 recipe and are
 loaded through the FFmpeg plugin's DT_NEEDED entries, so nothing is lost.
 
+The wrapper also appends the pure Python requirements listed in
+``BEATiCA_ANDROID_REQUIREMENTS`` to buildozer's ``app.requirements``, because
+pyside6-android-deploy hardcodes ``python3,shiboken6,PySide6`` and would
+otherwise ship an APK without the app's own dependencies.
+
 This wrapper can be removed once the host PySide6 includes the upstream fix
 (6.12.1 and later).
 """
 
 from __future__ import annotations
 
+import os
 import runpy
 import sys
 from pathlib import Path
@@ -27,6 +33,7 @@ scripts_dir = Path(PySide6.__file__).parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
 
 from deploy_lib.android.android_config import AndroidConfig  # noqa: E402
+from deploy_lib.android.buildozer import BuildozerConfig  # noqa: E402
 
 
 def _install_workaround() -> None:
@@ -54,6 +61,39 @@ def _install_workaround() -> None:
     AndroidConfig._pyside3501_workaround = True
 
 
+def _install_requirements_workaround() -> None:
+    if getattr(BuildozerConfig, "_extra_requirements_workaround", False):
+        return
+
+    original_init = BuildozerConfig.__init__
+
+    def __init__(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        extra = [
+            requirement.strip()
+            for requirement in os.environ.get(
+                "BEATiCA_ANDROID_REQUIREMENTS", ""
+            ).split(",")
+            if requirement.strip()
+        ]
+        if not extra:
+            return
+        current = self.get_value("app", "requirements", ignore_fail=True) or ""
+        merged = list(
+            dict.fromkeys(
+                [item.strip() for item in current.split(",") if item.strip()] + extra
+            )
+        )
+        self.set_value("app", "requirements", ",".join(merged))
+        # BuildozerConfig writes the spec file at the end of __init__; rewrite it
+        # so the extra requirements reach buildozer.
+        self.update_config()
+
+    BuildozerConfig.__init__ = __init__
+    BuildozerConfig._extra_requirements_workaround = True
+
+
 _install_workaround()
+_install_requirements_workaround()
 
 runpy.run_path(str(scripts_dir / "android_deploy.py"), run_name="__main__")
