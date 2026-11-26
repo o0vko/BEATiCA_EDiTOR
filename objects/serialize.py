@@ -34,6 +34,16 @@ def _fixed(d: dict) -> FixedInteger:
     return FixedInteger(major=d["major"], minor=d["minor"])
 
 
+def _curveNameOrNull(value) -> CurveType | None:
+    """旧データ(欠損)は None=自動として扱う"""
+    if not value:
+        return None
+    try:
+        return CurveType[value]
+    except KeyError:
+        return None
+
+
 def _fixedDict(v: FixedInteger) -> dict:
     return {"major": v.major, "minor": v.minor}
 
@@ -71,8 +81,14 @@ def chartToDict(chart: Chart) -> dict:
                         "beat": f.beat,
                         "lane": f.lane,
                         "positionY": f.positionY,
-                        "laneCurveType": f.laneCurveType.name,
-                        "positionYCurveType": f.positionYCurveType.name,
+                        "laneCurveType": (
+                            f.laneCurveType.name if f.laneCurveType else None
+                        ),
+                        "positionYCurveType": (
+                            f.positionYCurveType.name
+                            if f.positionYCurveType
+                            else None
+                        ),
                     }
                     for f in s.floatings
                 ],
@@ -140,10 +156,10 @@ def chartFromDict(d: dict) -> Chart:
                         beat=f["beat"],
                         lane=f["lane"],
                         positionY=f["positionY"],
-                        laneCurveType=CurveType[f.get("laneCurveType", "linear")],
-                        positionYCurveType=CurveType[
-                            f.get("positionYCurveType", "linear")
-                        ],
+                        laneCurveType=_curveNameOrNull(f.get("laneCurveType")),
+                        positionYCurveType=_curveNameOrNull(
+                            f.get("positionYCurveType")
+                        ),
                     )
                     for f in s["floatings"]
                 ],

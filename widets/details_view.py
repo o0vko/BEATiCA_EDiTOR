@@ -32,8 +32,8 @@ class DetailsViewWidget(QWidget):
     detachSkyNoteRequested = Signal()
     addKnotRequested = Signal()
     removeKnotRequested = Signal()
-    # 選択中knotの補間曲線（lane用とpositionY用）を変更
-    skyKnotCurveChanged = Signal(int, CurveType, CurveType)
+    # 選択中knotの補間曲線（lane用とpositionY用）を変更。None は「自動」
+    skyKnotCurveChanged = Signal(int, object, object)
 
     def __init__(self, editing: EditingChart):
         super().__init__()
@@ -284,16 +284,14 @@ class DetailsViewWidget(QWidget):
         # knot から次の knot への補間曲線（lane と positionY を個別に指定）
         self.knotLaneCurveLabel = QLabel("スカイ曲線 (lane)")
         self.knotLaneCurveCombo = QComboBox()
-        for curve in CurveType:
-            self.knotLaneCurveCombo.addItem(curve.name, curve)
+        self._fillKnotCurveCombo(self.knotLaneCurveCombo)
         self.knotLaneCurveCombo.activated.connect(self.onKnotCurveChanged)
         layout.addWidget(self.knotLaneCurveLabel)
         layout.addWidget(self.knotLaneCurveCombo)
 
         self.knotPositionCurveLabel = QLabel("スカイ曲線 (Y)")
         self.knotPositionCurveCombo = QComboBox()
-        for curve in CurveType:
-            self.knotPositionCurveCombo.addItem(curve.name, curve)
+        self._fillKnotCurveCombo(self.knotPositionCurveCombo)
         self.knotPositionCurveCombo.activated.connect(self.onKnotCurveChanged)
         layout.addWidget(self.knotPositionCurveLabel)
         layout.addWidget(self.knotPositionCurveCombo)
@@ -325,6 +323,13 @@ class DetailsViewWidget(QWidget):
         if row >= 0:
             self.removeKnotRequested.emit()
 
+    @staticmethod
+    def _fillKnotCurveCombo(combo: QComboBox):
+        """先頭に「自動（ノーツに追従）」= None を置く"""
+        combo.addItem("自動 (ノーツに追従)", None)
+        for curve in CurveType:
+            combo.addItem(curve.name, curve)
+
     def onKnotSelectionChanged(self):
         row = self.knotList.currentRow()
         self.editing.selectedKnotIndex = row if row >= 0 else None
@@ -354,7 +359,9 @@ class DetailsViewWidget(QWidget):
             (self.knotPositionCurveCombo, floating.positionYCurveType),
         ):
             combo.blockSignals(True)
-            combo.setCurrentText(curve.name)
+            # None(自動)は先頭項目、それ以外は名前で選択
+            index = 0 if curve is None else combo.findData(curve)
+            combo.setCurrentIndex(max(index, 0))
             combo.blockSignals(False)
 
     def refreshKnotList(self):
@@ -364,9 +371,13 @@ class DetailsViewWidget(QWidget):
         _note, skyNote = self.editing.selectedSkyNote()
         if skyNote is not None:
             for i, f in enumerate(skyNote.floatings):
+                lane_curve = f.laneCurveType.name if f.laneCurveType else "auto"
+                position_curve = (
+                    f.positionYCurveType.name if f.positionYCurveType else "auto"
+                )
                 self.knotList.addItem(
                     f"#{i}  beat={f.beat:.3f}  lane={f.lane:.2f}  Y={f.positionY:.2f}"
-                    f"  [{f.laneCurveType.name}/{f.positionYCurveType.name}]"
+                    f"  [{lane_curve}/{position_curve}]"
                 )
             idx = self.editing.selectedKnotIndex
             if idx is not None and 0 <= idx < self.knotList.count():

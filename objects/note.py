@@ -79,17 +79,21 @@ class SkyNoteFloating:
     beat: float
     lane: float
     positionY: float  # 浮動位置のY座標（5.0でちょうど1）
-    # この点から次の点までの補間に使う曲線（lane と positionY で独立に指定）
-    laneCurveType: CurveType = CurveType.linear
-    positionYCurveType: CurveType = CurveType.linear
+    # この点から次の点までの補間に使う曲線（lane と positionY で独立に指定）。
+    # None は「自動」= ノーツ側の curveType に追従（旧データ互換）。
+    laneCurveType: CurveType | None = None
+    positionYCurveType: CurveType | None = None
 
     def toBytes(self) -> list[bytes]:
+        # 保存時は自動(None)を linear に解決して書き出すため、
+        # 新バージョンで保存したファイルにフォールバックは残らない
         return [
             struct.pack("<f", self.beat),
             struct.pack("<f", self.lane),
             struct.pack("<f", self.positionY),
-            self.laneCurveType.value.to_bytes(4, "little"),
-            self.positionYCurveType.value.to_bytes(4, "little"),
+            (self.laneCurveType or CurveType.linear).value.to_bytes(4, "little"),
+            (self.positionYCurveType or CurveType.linear)
+            .value.to_bytes(4, "little"),
         ]
 
 
