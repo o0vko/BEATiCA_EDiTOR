@@ -4,6 +4,24 @@ import platform
 import subprocess
 from pathlib import Path
 
+import zipfile
+
+for wheel in (wheel_pyside, wheel_shiboken):
+    if not wheel:
+        continue
+
+    print(f"\n[ANDROID DEBUG] Inspecting {wheel}")
+
+    with zipfile.ZipFile(wheel) as z:
+        for entry in z.namelist():
+            if ".so" in entry and (
+                "plugin" in entry.lower()
+                or "avcodec" in entry.lower()
+                or "avformat" in entry.lower()
+                or "avutil" in entry.lower()
+            ):
+                print(f"[ANDROID DEBUG] {entry}")
+
 ROOT = Path(__file__).parent
 CONFIG_PATH = ROOT / "pysidedeploy.spec"
 
