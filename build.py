@@ -144,10 +144,18 @@ def build_ios(config) -> None:
     project = projects[0]
     print(f"[IOS] project: {project}")
 
-    # 横向き固定（Info.plist を直接書き換える）
+    # 横向き固定と表示名・Bundle ID を Info.plist に反映
     plist = project.parent / app_name / "Info.plist"
     if plist.is_file():
         buddy = "/usr/libexec/PlistBuddy"
+        for key, value in (
+            ("CFBundleIdentifier", bundle_id),
+            ("CFBundleDisplayName", app_name),
+            ("CFBundleName", app_name),
+        ):
+            subprocess.run(
+                [buddy, "-c", f"Set :{key} {value}", str(plist)], check=False
+            )
         subprocess.run(
             [buddy, "-c", "Delete :UISupportedInterfaceOrientations", str(plist)],
             check=False,
@@ -170,7 +178,7 @@ def build_ios(config) -> None:
                 check=False,
             )
 
-    # 実機(iphoneos)向けに未署名ビルド
+    # 実機(iphoneos)向けにアドホック署名でビルド（サイドロ−ド前提）
     build_dir = ROOT / "dist" / "ios"
     build_dir.mkdir(parents=True, exist_ok=True)
     xcodebuild = shutil.which("xcodebuild") or "xcodebuild"
@@ -187,9 +195,9 @@ def build_ios(config) -> None:
             "iphoneos",
             "-derivedDataPath",
             str(build_dir),
-            "CODE_SIGNING_ALLOWED=NO",
+            "CODE_SIGN_IDENTITY=-",
+            "CODE_SIGNING_ALLOWED=YES",
             "CODE_SIGNING_REQUIRED=NO",
-            "CODE_SIGN_IDENTITY=",
             "build",
         ],
         check=False,
