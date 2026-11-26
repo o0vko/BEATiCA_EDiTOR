@@ -1,5 +1,5 @@
 [app]
-title = BEATiCA_EDiTOR
+title = BEAEDiT
 project_dir = .
 input_file = main.py
 exec_directory = dist

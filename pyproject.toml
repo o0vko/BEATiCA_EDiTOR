@@ -34,7 +34,7 @@ ios = [
 ]
 
 [tool.pyside6.deploy]
-title = "BEATiCA EDiTOR"
+title = "BEAEDiT"
 input_file = "main.py"
 exec_directory = "dist"
 mode = "standalone"

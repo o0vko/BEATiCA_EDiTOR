@@ -21,6 +21,10 @@ ANDROID_INCLUDE_EXTS = "wav"
 # buildozer defaults to portrait; the editor is designed for landscape.
 ANDROID_ORIENTATION = "landscape"
 
+# 全プラットフォーム共通の表示名とパッケージID（ウィンドウタイトルは別）
+APP_DISPLAY_NAME = "BEAEDiT"
+PACKAGE_ID = "net.m1m1q.beatica_editor"
+
 
 def verify_android_apk(apk: Path) -> None:
     """Make sure QtLoader cannot reference a native library missing from the APK."""
@@ -74,8 +78,8 @@ def build_ios(config) -> None:
 
     version = PySide6.__version__
     base = "https://download.qt.io/official_releases/QtForPython"
-    bundle_id = "org.beatica_editor.beatica_editor"
-    app_name = "BEATiCA_EDiTOR"
+    bundle_id = PACKAGE_ID
+    app_name = APP_DISPLAY_NAME
 
     icon_path = ROOT / "res" / "icon.png"
     if not icon_path.is_file():
@@ -298,6 +302,7 @@ def main():
         env["BEATiCA_ANDROID_REQUIREMENTS"] = ANDROID_REQUIREMENTS
         env["BEATiCA_ANDROID_INCLUDE_EXTS"] = ANDROID_INCLUDE_EXTS
         env["BEATiCA_ANDROID_ORIENTATION"] = ANDROID_ORIENTATION
+        env["BEATiCA_ANDROID_PACKAGE_ID"] = PACKAGE_ID
         if wheel_pyside:
             cmd += ["--wheel-pyside", wheel_pyside]
         if wheel_shiboken:

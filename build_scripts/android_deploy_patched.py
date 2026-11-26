@@ -19,6 +19,7 @@ otherwise ship an APK without the app's own dependencies.  For the same reason
 defaults to ``py,png,jpg,kv,atlas`` and silently drops files such as
 ``assets/sounds/*.wav``.  ``BEATiCA_ANDROID_ORIENTATION`` overrides
 ``app.orientation``, which buildozer defaults to ``portrait``.
+``BEATiCA_ANDROID_PACKAGE_ID`` overrides the generated package id.
 
 This wrapper can be removed once the host PySide6 includes the upstream fix
 (6.12.1 and later).
@@ -36,8 +37,8 @@ import PySide6
 scripts_dir = Path(PySide6.__file__).parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
 
-from deploy_lib.android.android_config import AndroidConfig  # noqa: E402
-from deploy_lib.android.buildozer import BuildozerConfig  # noqa: E402
+from deploy_lib.android.android_config import AndroidConfig
+from deploy_lib.android.buildozer import BuildozerConfig
 
 
 def _install_workaround() -> None:
@@ -152,9 +153,35 @@ def _install_orientation_workaround() -> None:
     BuildozerConfig._orientation_workaround = True
 
 
+def _install_package_workaround() -> None:
+    if getattr(BuildozerConfig, "_package_id_workaround", False):
+        return
+
+    original_init = BuildozerConfig.__init__
+
+    def __init__(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        package_id = os.environ.get("BEATiCA_ANDROID_PACKAGE_ID", "").strip()
+        if not package_id:
+            return
+        # buildozer は domain と name を繋いで package を作る
+        domain, _, name = package_id.rpartition(".")
+        if not domain:
+            return
+        self.set_value("app", "package.domain", domain)
+        self.set_value("app", "package.name", name)
+        # BuildozerConfig writes the spec file at the end of __init__; rewrite it
+        # so the package id reaches buildozer.
+        self.update_config()
+
+    BuildozerConfig.__init__ = __init__
+    BuildozerConfig._package_id_workaround = True
+
+
 _install_workaround()
 _install_requirements_workaround()
 _install_include_exts_workaround()
 _install_orientation_workaround()
+_install_package_workaround()
 
 runpy.run_path(str(scripts_dir / "android_deploy.py"), run_name="__main__")
