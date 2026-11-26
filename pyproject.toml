@@ -26,6 +26,12 @@ android = [
     "pkginfo",
     "tqdm",
 ]
+# iOSビルド用（pyside6-ios-deploy）。Xcode と Python 3.15 が必要
+ios = [
+    "jinja2",
+    "pkginfo",
+    "tqdm",
+]
 
 [tool.pyside6.deploy]
 title = "BEATiCA EDiTOR"

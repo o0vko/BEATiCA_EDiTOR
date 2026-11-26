@@ -3,10 +3,8 @@ import os
 import platform
 import re
 import subprocess
-from pathlib import Path
-
 import zipfile
-
+from pathlib import Path
 
 ROOT = Path(__file__).parent
 CONFIG_PATH = ROOT / "pysidedeploy.spec"
@@ -62,12 +60,169 @@ ICONS = {
 }
 
 
+def build_ios(config) -> None:
+    """Xcode プロジェクトを生成し、サイドロ−ド用の未署名 IPA を作る。
+
+    pyside6-ios-deploy は Xcode プロジェクトしか作らないので、xcodebuild で
+    iphoneos 向けにビルドし、Payload/ で包んで IPA にしている。
+    """
+    import shutil
+    import sys
+    import urllib.request
+
+    import PySide6
+
+    version = PySide6.__version__
+    base = "https://download.qt.io/official_releases/QtForPython"
+    bundle_id = "org.beatica_editor.beatica_editor"
+    app_name = "BEATiCA_EDiTOR"
+
+    icon_path = ROOT / "res" / "icon.png"
+    if not icon_path.is_file():
+        raise FileNotFoundError(icon_path)
+    config.set("app", "icon", str(icon_path.resolve()))
+    with CONFIG_PATH.open("w", encoding="utf-8") as f:
+        config.write(f)
+
+    def download(url: str, dest: Path) -> bool:
+        print(f"[IOS] Downloading {url}")
+        try:
+            urllib.request.urlretrieve(url, dest)
+            return True
+        except Exception as e:  # noqa: BLE001
+            print(f"[IOS] Failed to download {url}: {e}")
+            return False
+
+    # iOS wheel は cp315 系のみ公開されている
+    wheel_pyside = wheel_shiboken = None
+    for tag in ("cp315-cp315", "cp314-cp314", "cp313-cp313"):
+        pyside_name = f"pyside6-{version}-{version}-{tag}-ios_arm64.whl"
+        shiboken_name = f"shiboken6-{version}-{version}-{tag}-ios_arm64.whl"
+        pyside_ok = download(f"{base}/pyside6/{pyside_name}", ROOT / pyside_name)
+        shiboken_ok = download(
+            f"{base}/shiboken6/{shiboken_name}", ROOT / shiboken_name
+        )
+        if pyside_ok and shiboken_ok:
+            wheel_pyside = str(ROOT / pyside_name)
+            wheel_shiboken = str(ROOT / shiboken_name)
+            break
+
+    if not wheel_pyside or not wheel_shiboken:
+        raise RuntimeError(
+            f"[IOS] PySide6 {version} の iOS wheel が見つかりません（cp315 が必要）"
+        )
+
+    deploy = shutil.which("pyside6-ios-deploy")
+    cmd = (
+        [deploy]
+        if deploy
+        else [sys.executable, "-m", "PySide6.scripts.ios_deploy"]
+    )
+    cmd += [
+        "-c",
+        str(CONFIG_PATH),
+        "--name",
+        app_name,
+        "--bundle-id",
+        bundle_id,
+        "--wheel-pyside",
+        wheel_pyside,
+        "--wheel-shiboken",
+        wheel_shiboken,
+    ]
+    result = subprocess.run(cmd, check=False, cwd=ROOT)
+    if result.returncode != 0:
+        raise SystemExit(f"[IOS] pyside6-ios-deploy failed ({result.returncode})")
+
+    projects = sorted(ROOT.glob(f"deployment/*/{app_name}.xcodeproj"))
+    if not projects:
+        raise RuntimeError("[IOS] Xcode プロジェクトが生成されませんでした")
+    project = projects[0]
+    print(f"[IOS] project: {project}")
+
+    # 横向き固定（Info.plist を直接書き換える）
+    plist = project.parent / app_name / "Info.plist"
+    if plist.is_file():
+        buddy = "/usr/libexec/PlistBuddy"
+        subprocess.run(
+            [buddy, "-c", "Delete :UISupportedInterfaceOrientations", str(plist)],
+            check=False,
+        )
+        subprocess.run(
+            [buddy, "-c", "Add :UISupportedInterfaceOrientations array", str(plist)],
+            check=False,
+        )
+        for value in (
+            "UIInterfaceOrientationLandscapeLeft",
+            "UIInterfaceOrientationLandscapeRight",
+        ):
+            subprocess.run(
+                [
+                    buddy,
+                    "-c",
+                    f"Add :UISupportedInterfaceOrientations: string {value}",
+                    str(plist),
+                ],
+                check=False,
+            )
+
+    # 実機(iphoneos)向けに未署名ビルド
+    build_dir = ROOT / "dist" / "ios"
+    build_dir.mkdir(parents=True, exist_ok=True)
+    xcodebuild = shutil.which("xcodebuild") or "xcodebuild"
+    result = subprocess.run(
+        [
+            xcodebuild,
+            "-project",
+            str(project),
+            "-scheme",
+            app_name,
+            "-configuration",
+            "Debug",
+            "-sdk",
+            "iphoneos",
+            "-derivedDataPath",
+            str(build_dir),
+            "CODE_SIGNING_ALLOWED=NO",
+            "CODE_SIGNING_REQUIRED=NO",
+            "CODE_SIGN_IDENTITY=",
+            "build",
+        ],
+        check=False,
+        cwd=ROOT,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"[IOS] xcodebuild failed ({result.returncode})")
+
+    app_bundles = sorted(build_dir.glob(f"Build/Products/Debug-iphoneos/{app_name}.app"))
+    if not app_bundles:
+        raise RuntimeError("[IOS] .app が見つかりませんでした")
+    app_bundle = app_bundles[0]
+
+    # Payload/ で包んで IPA（zip）にする
+    payload = build_dir / "Payload"
+    shutil.rmtree(payload, ignore_errors=True)
+    payload.mkdir(parents=True)
+    shutil.copytree(app_bundle, payload / app_bundle.name)
+    ipa = ROOT / "dist" / f"{app_name}.ipa"
+    if ipa.exists():
+        ipa.unlink()
+    with zipfile.ZipFile(ipa, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(payload.rglob("*")):
+            zf.write(path, path.relative_to(payload))
+    print(f"[IOS] wrote {ipa} ({ipa.stat().st_size} bytes)")
+
+
 def main():
     target = os.environ.get("BUILD_TARGET", "").strip().lower()
 
     config = configparser.ConfigParser()
     if not config.read(CONFIG_PATH, encoding="utf-8"):
         raise FileNotFoundError(CONFIG_PATH)
+
+    if target == "ios":
+        build_ios(config)
+        return
 
     if target == "android":
         import urllib.request

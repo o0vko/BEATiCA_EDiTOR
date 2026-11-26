@@ -33,6 +33,21 @@ ICON_SIZES = {"small": 20, "medium": 32, "large": 48}
 
 # p4a sets ANDROID_PRIVATE (and getandroidapkpath) inside the APK.
 IS_ANDROID = "ANDROID_PRIVATE" in os.environ or hasattr(sys, "getandroidapkpath")
+# PySide6 の iOS ビルドでは sys.platform が "ios" になる
+IS_IOS = sys.platform == "ios"
+
+
+def writableDataDir() -> Path:
+    """書き込み可能なアプリデータ目录（iOS/Android のサンドボックス対応）"""
+    if IS_ANDROID or IS_IOS:
+        from PySide6.QtCore import QStandardPaths
+
+        location = QStandardPaths.writableLocation(
+            QStandardPaths.StandardLocation.AppDataLocation
+        )
+        if location:
+            return Path(location)
+    return Const.ASSETS_PATH.parent
 
 
 def fileDialogOptions() -> QFileDialog.Options:
@@ -272,7 +287,7 @@ class MainWindow(QMainWindow):
             self.autosaveTimer.start(interval * 1000)
 
     def autosave(self):
-        folder = Const.ASSETS_PATH.parent / "autosaves"
+        folder = writableDataDir() / "autosaves"
         folder.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         saveProject(
@@ -547,10 +562,11 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    # 環境変数にPySide6を登録
-    dirname = os.path.dirname(PySide6.__file__)
-    plugin_path = os.path.join(dirname, "plugins", "platforms")
-    os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = plugin_path
+    # Android のみ Qt のプラグインパスを明示する（iOS はアプリバンドルから解決）
+    if IS_ANDROID:
+        dirname = os.path.dirname(PySide6.__file__)
+        plugin_path = os.path.join(dirname, "plugins", "platforms")
+        os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = plugin_path
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
