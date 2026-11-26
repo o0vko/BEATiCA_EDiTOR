@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QMainWindow,
     QMenu,
+    QMessageBox,
     QScrollArea,
     QSplitter,
     QToolBar,
@@ -100,6 +101,8 @@ class MainWindow(QMainWindow):
         # 現在のプロジェクト情報
         self.bgmPath: str | None = None
         self.currentProjectPath: Path | None = None
+        # 終了時の保存確認用（初期状態は保存済み扱い）
+        self._savedFingerprint = self._chartFingerprint()
 
         self.setupWidget()
         self.setupToolbar()
@@ -140,7 +143,8 @@ class MainWindow(QMainWindow):
         fileMenu.addSeparator()
 
         exitAction = QAction("終了", self)
-        exitAction.triggered.connect(QApplication.quit)
+        # 終了時も保存確認ダイアログを通す
+        exitAction.triggered.connect(self.close)
         fileMenu.addAction(exitAction)
 
         # 編集
@@ -216,6 +220,56 @@ class MainWindow(QMainWindow):
             self.autosaveTimer.start(seconds * 1000)
 
     # --- ファイル操作 ---
+    def _chartFingerprint(self) -> str:
+        """譜面内容の指紋（保存確認の dirty 判定に使う）"""
+        import hashlib
+        import json
+
+        from objects.serialize import chartToDict
+
+        payload = json.dumps(
+            chartToDict(self.editing.chart), sort_keys=True, ensure_ascii=False
+        )
+        return hashlib.sha1(payload.encode("utf-8")).hexdigest()
+
+    def markSaved(self):
+        self._savedFingerprint = self._chartFingerprint()
+
+    def isDirty(self) -> bool:
+        return self._savedFingerprint != self._chartFingerprint()
+
+    def closeEvent(self, event):
+        """終了時に未保存なら確認する"""
+        if not self.isDirty():
+            event.accept()
+            self._finishOnAndroid()
+            return
+
+        box = QMessageBox(self)
+        box.setWindowTitle("保存確認")
+        box.setText("変更が保存されていません。保存しますか？")
+        saveButton = box.addButton("保存", QMessageBox.ButtonRole.AcceptRole)
+        box.addButton("破棄", QMessageBox.ButtonRole.DestructiveRole)
+        cancelButton = box.addButton("キャンセル", QMessageBox.ButtonRole.RejectRole)
+        box.setDefaultButton(saveButton)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if clicked is cancelButton or clicked is None:
+            event.ignore()
+            return
+        if clicked is saveButton and not self.saveProject():
+            # 保存ダイアログがキャンセルされた
+            event.ignore()
+            return
+        event.accept()
+        self._finishOnAndroid()
+
+    def _finishOnAndroid(self):
+        """Android では close() だけではプロセスが終了しないため明示的に終了する"""
+        if IS_ANDROID:
+            QApplication.quit()
+
     def importAudio(self):
         filename, _ = QFileDialog.getOpenFileName(
             self,
@@ -229,7 +283,8 @@ class MainWindow(QMainWindow):
             self.player.setSource(QUrl.fromLocalFile(filename))
             self.chartAreaCanvas.syncWidth()
 
-    def saveProject(self):
+    def saveProject(self) -> bool:
+        """プロジェクトを保存。キャンセル時は False を返す"""
         path, _ = QFileDialog.getSaveFileName(
             self,
             "プロジェクトを保存",
@@ -238,11 +293,13 @@ class MainWindow(QMainWindow):
             options=fileDialogOptions(),
         )
         if not path:
-            return
+            return False
         if not path.endswith(".beaproj"):
             path += ".beaproj"
         self.currentProjectPath = Path(path)
         saveProject(self.editing.chart, Path(path), self.bgmPath)
+        self.markSaved()
+        return True
 
     def loadProject(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -262,6 +319,7 @@ class MainWindow(QMainWindow):
             self.player.setSource(QUrl.fromLocalFile(bgm))
         self.chartAreaCanvas.onChartChanged()
         self.detailsView.updateNoteInfo()
+        self.markSaved()
 
     def exportBinary(self):
         path, _ = QFileDialog.getSaveFileName(
@@ -539,6 +597,11 @@ class MainWindow(QMainWindow):
         self.chartAreaCanvas.syncWidth()
 
     def keyPressEvent(self, event: QKeyEvent):
+        # Android の戻るキーでアプリを終了（保存確認を挟む）
+        if event.key() == Qt.Key.Key_Back:
+            self.close()
+            return
+
         if event.key() == Qt.Key.Key_Space:
             self.chartAreaCanvas.togglePlay()
             return

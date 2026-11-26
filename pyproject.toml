@@ -28,6 +28,7 @@ android = [
 ]
 # iOSビルド用（pyside6-ios-deploy）。Xcode と Python 3.15 が必要
 ios = [
+    "certifi",
     "jinja2",
     "pkginfo",
     "tqdm",
