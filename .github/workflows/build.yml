@@ -113,7 +113,7 @@ jobs:
           ( while true; do
               find /home/runner/work -name config.log 2>/dev/null | while read -r f; do
                 d="/home/runner/cl/$(echo "$f" | md5sum | cut -c1-8)-$(basename "$(dirname "$f")")"
-                [ -f "$d" ] || cp "$f" "$d" 2>/dev/null || true
+                cp -f "$f" "$d" 2>/dev/null || true
               done
               sleep 0.2
             done ) &
