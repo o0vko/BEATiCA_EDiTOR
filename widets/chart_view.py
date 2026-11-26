@@ -981,8 +981,10 @@ class ChartViewWidget(QWidget):
 
         newId = self.editing.nextNoteId
 
-        # 浮動点は初期1つ（配置位置）
-        floatings = [SkyNoteFloating(beat=beat, lane=lane, positionY=0.0)]
+        # 浮動点は初期1つ（ノーツの中央＝カーソル位置）
+        floatings = [
+            SkyNoteFloating(beat=beat, lane=lane + noteWidth / 2, positionY=0.0)
+        ]
         skyNote = SkyNote(id=newId, floatings=floatings)
 
         note = Note(
@@ -1004,29 +1006,19 @@ class ChartViewWidget(QWidget):
         self.update()
 
     def _buildSkyNote(self, note: Note) -> SkyNote:
-        """ノーツ用のSkyNoteを作成（knotは初期1つ）
+        """ノーツ用のSkyNoteを作成（初期knotはノーツ群の中央）
 
         スカイノーツは常にアンカーノーツ（通常ノーツは自身、ロングノーツは
         始点）のidで識別する。
         """
-        anchor = note
-        if note.flag == NoteFlag.longNote:
-            longNote = self._longNoteContaining(note)
-            if longNote is not None and longNote.steps:
-                anchor = next(
-                    (
-                        n
-                        for n in self.editing.chart.notes
-                        if n.id == longNote.steps[0]
-                    ),
-                    note,
-                )
+        anchorBeat, anchorLane = self._skyAnchor(note)
+        anchor = self._skyAnchorNote(note)
 
         return SkyNote(
             id=anchor.id,
             floatings=[
                 SkyNoteFloating(
-                    beat=anchor.beat, lane=anchor.lane, positionY=0.0
+                    beat=anchorBeat, lane=anchorLane, positionY=0.0
                 )
             ],
         )
@@ -1086,14 +1078,70 @@ class ChartViewWidget(QWidget):
         except ValueError:
             return 0.0
 
+    def _beatSnapStep(self) -> float:
+        """現在のスナップ設定での1区切りの拍数"""
+        changes = sorted(self.editing.chart.globalChanges, key=lambda c: c.beat)
+        beat = self._currentBeatSafe()
+        active = changes[0] if changes else None
+        for change in changes:
+            if change.beat <= beat + 1e-9:
+                active = change
+            else:
+                break
+        if active is None:
+            return 1.0 / max(1, self.snap)
+        beatStep = 4 / active.timeSignature.minor  # 1拍の長さ
+        measureStep = active.timeSignature.major * beatStep  # 1小節の長さ
+        return measureStep / max(1, self.snap)
+
+    def _skyAnchorNote(self, note: Note) -> Note:
+        """スカイノーツのアンカーノーツ（通常は自身、ロングは始点）"""
+        longNote = self._longNoteContaining(note)
+        if longNote is not None and longNote.steps:
+            return next(
+                (n for n in self.editing.chart.notes if n.id == longNote.steps[0]),
+                note,
+            )
+        return note
+
+    def _skyAnchor(self, note: Note) -> tuple[float, float]:
+        """スカイノーツの基準位置(beat, lane)＝ノーツ（群）の中央"""
+        longNote = self._longNoteContaining(note)
+        if longNote is not None and len(longNote.steps) >= 2:
+            start = next(
+                (n for n in self.editing.chart.notes if n.id == longNote.steps[0]),
+                None,
+            )
+            end = next(
+                (n for n in self.editing.chart.notes if n.id == longNote.steps[-1]),
+                None,
+            )
+            if start is not None and end is not None:
+                startLane = start.lane + start.width / 2
+                endLane = end.lane + end.width / 2
+                return (start.beat + end.beat) / 2, (startLane + endLane) / 2
+        anchor = self._skyAnchorNote(note)
+        return anchor.beat, anchor.lane + anchor.width / 2
+
     def addKnot(self):
-        """選択スカイノーツに現在の再生位置のknotを追加"""
+        """選択スカイノーツにknotを追加（中央レーン・次のビートスナップ位置）"""
         note, skyNote = self.editing.selectedSkyNote()
         if skyNote is None:
             return
-        beat = self.snapBeat(self._currentBeatSafe())
-        lane = self.snapLane(note.lane)
-        lane = max(0, min(Const.LANE_COUNT - 1, lane))
+
+        anchorBeat, anchorLane = self._skyAnchor(note)
+        step = self._beatSnapStep()
+
+        if skyNote.floatings:
+            # 既存のどのknotとも被らない「次のスナップ位置」へ進める
+            beat = max(f.beat for f in skyNote.floatings) + step
+            beat = self.snapBeat(beat)
+            while any(abs(f.beat - beat) < 1e-6 for f in skyNote.floatings):
+                beat = self.snapBeat(beat + step)
+        else:
+            beat = self.snapBeat(anchorBeat)
+
+        lane = max(0, min(Const.LANE_COUNT - 1, anchorLane))
         skyNote.floatings.append(SkyNoteFloating(beat=beat, lane=lane, positionY=0.0))
         skyNote.floatings.sort(key=lambda f: f.beat)
         self.editing.selectedKnotIndex = next(
