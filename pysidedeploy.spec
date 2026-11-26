@@ -18,7 +18,7 @@ qml_files =
 [android]
 wheel_pyside = 
 wheel_shiboken = 
-plugins = imageformats,multimedia,platforms,platforminputcontexts,platformthemes,styles
+plugins = imageformats,multimedia,platforms
 
 [ios]
 wheel_pyside = 
