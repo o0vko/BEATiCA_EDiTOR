@@ -897,9 +897,7 @@ class ChartViewWidget(QWidget):
                 self.update()
         elif self.editing.editMode == EditMode.LONG_NOTE:
             noteWidth = 4.0
-            rawLane = self.getLaneFromXPoint(event.x()) - noteWidth / 2
-            lane = rawLane if noSnap else self.snapLane(rawLane)
-            lane = max(0, min(Const.LANE_COUNT - noteWidth, lane))
+            lane = self.laneFromPos(event, noteWidth, noSnap)
 
             if 0 <= lane <= Const.LANE_COUNT - 1:
                 beat = self.getBeatFromYPoint(event.y())
@@ -928,6 +926,14 @@ class ChartViewWidget(QWidget):
             self.addLongNoteConnector(event.pos(), noSnap)
             self.update()
 
+    def laneFromPos(
+        self, pos: QPoint, noteWidth: float = 4.0, noSnap: bool = False
+    ) -> float:
+        """カーソル位置をノーツの中心に置くためのレーンを求める"""
+        rawLane = self.getLaneFromXPoint(pos.x()) - noteWidth / 2
+        lane = rawLane if noSnap else self.snapLane(rawLane)
+        return max(0, min(Const.LANE_COUNT - noteWidth, lane))
+
     def placeNoteWithResize(
         self,
         event: QMouseEvent,
@@ -937,9 +943,7 @@ class ChartViewWidget(QWidget):
     ):
         """ノーツを配置し、そのままドラッグで幅を変更できるよう右エッジを掴む"""
         noteWidth = 4.0
-        rawLane = self.getLaneFromXPoint(event.x()) - noteWidth / 2
-        lane = rawLane if noSnap else self.snapLane(rawLane)
-        lane = max(0, min(Const.LANE_COUNT - noteWidth, lane))
+        lane = self.laneFromPos(event, noteWidth, noSnap)
 
         beat = self.getBeatFromYPoint(event.y())
         beat = beat if noSnap else self.snapBeat(beat)
@@ -970,9 +974,7 @@ class ChartViewWidget(QWidget):
     def placeSkyNote(self, event: QMouseEvent, noSnap: bool = False):
         """スカイノーツを配置（ノーツと同一idのSkyNoteも作成）"""
         noteWidth = 4.0
-        rawLane = self.getLaneFromXPoint(event.x()) - noteWidth / 2
-        lane = rawLane if noSnap else self.snapLane(rawLane)
-        lane = max(0, min(Const.LANE_COUNT - noteWidth, lane))
+        lane = self.laneFromPos(event, noteWidth, noSnap)
 
         beat = self.getBeatFromYPoint(event.y())
         beat = beat if noSnap else self.snapBeat(beat)
@@ -1366,14 +1368,24 @@ class ChartViewWidget(QWidget):
 
     def updateHoverPreview(self, pos: QPoint, modifiers=None):
         """マウス位置に基づいてホバープレビュー位置を更新"""
-        lane = self.snapLane(self.getLaneFromXPoint(pos.x()))
-        lane = max(0, min(Const.LANE_COUNT - 1, lane))
+        mode = self.editing.editMode
+        # ノーツ系はカーソルがノーツの中心に来るようにする（配置時と同じ規則）
+        if mode in (
+            EditMode.TAP_NOTE,
+            EditMode.TRACE_NOTE,
+            EditMode.FLICK_NOTE,
+            EditMode.SKY_NOTE,
+            EditMode.LONG_NOTE,
+            EditMode.LONG_NOTE_CONNECTOR,
+        ):
+            lane = self.laneFromPos(pos, 4.0)
+        else:
+            lane = self.snapLane(self.getLaneFromXPoint(pos.x()))
+            lane = max(0, min(Const.LANE_COUNT - 1, lane))
 
         if 0 <= lane <= Const.LANE_COUNT - 1:
             beat = self.getBeatFromYPoint(pos.y())
             beat = self.snapBeat(beat)
-
-            mode = self.editing.editMode
 
             if mode in (
                 EditMode.TAP_NOTE,
@@ -1861,8 +1873,8 @@ class ChartViewWidget(QWidget):
 
     def addLongNoteConnector(self, pos: QPoint, noSnap: bool = False):
         """ロングノーツの台形クリックで支点（コネクター）を追加"""
-        # クリック位置の beat/lane を計算
-        lane = math.floor(self.getLaneFromXPoint(pos.x()))
+        # クリック位置の beat/lane を計算（カーソルがノーツ中心に来るように）
+        lane = math.floor(self.laneFromPos(pos, 4.0, noSnap))
         if not (0 <= lane <= Const.LANE_COUNT - 1):
             return
 
