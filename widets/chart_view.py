@@ -1002,11 +1002,13 @@ class ChartViewWidget(QWidget):
         self.update()
 
     def _buildSkyNote(self, note: Note) -> SkyNote:
-        """ノーツ用のSkyNoteを作成（knotは初期1つ）"""
+        """ノーツ用のSkyNoteを作成（knotは初期1つ）
+
+        スカイノーツは常にアンカーノーツ（通常ノーツは自身、ロングノーツは
+        始点）のidで識別する。
+        """
         anchor = note
-        skyId = note.id
         if note.flag == NoteFlag.longNote:
-            # ロングノーツのスカイノーツは本体に紐づき、knotは始点に置く
             longNote = self._longNoteContaining(note)
             if longNote is not None and longNote.steps:
                 anchor = next(
@@ -1017,19 +1019,9 @@ class ChartViewWidget(QWidget):
                     ),
                     note,
                 )
-            # LongNote.skyNote は 0 を「スカイノーツなし」として扱うため、
-            # 0 や既存idと衝突しない新しいidを割り当てる
-            usedIds = {n.id for n in self.editing.chart.notes} | {
-                s.id for s in self.editing.chart.skyNotes
-            }
-            skyId = self.editing.nextNoteId
-            self.editing.nextNoteId += 1
-            while skyId == 0 or skyId in usedIds:
-                skyId = self.editing.nextNoteId
-                self.editing.nextNoteId += 1
 
         return SkyNote(
-            id=skyId,
+            id=anchor.id,
             floatings=[
                 SkyNoteFloating(
                     beat=anchor.beat, lane=anchor.lane, positionY=0.0
@@ -1045,10 +1037,7 @@ class ChartViewWidget(QWidget):
         )
 
     def _isSkyNote(self, note: Note) -> bool:
-        longNote = self._longNoteContaining(note)
-        if longNote is not None:
-            return bool(longNote.skyNote)
-        return any(s.id == note.id for s in self.editing.chart.skyNotes)
+        return self.editing.skyNoteOf(note) is not None
 
     def _longNoteOf(self, note: Note) -> LongNote | None:
         # スカイノーツはロングノーツ本体に紐づくため、どのステップを選択して
@@ -1056,7 +1045,7 @@ class ChartViewWidget(QWidget):
         return self._longNoteContaining(note)
 
     def attachSkyNoteToSelection(self):
-        """選択ノーツにスカイノーツを付ける（ロングノーツは始点id・LongNote.skyNote）"""
+        """選択ノーツにスカイノーツを付ける（通常/ロングで同じ規則）"""
         for note in list(self.editing.selectedNotes):
             # ロングノーツは本体にスカイノーツが付くため、note.skyNote ではなく
             # 所属ロングノーツの状態で判定する
@@ -1074,24 +1063,12 @@ class ChartViewWidget(QWidget):
         self.update()
 
     def detachSkyNoteFromSelection(self):
-        """選択ノーツからスカイノーツを外す"""
+        """選択ノーツからスカイノーツを外す（通常/ロングで同じ規則）"""
         for note in list(self.editing.selectedNotes):
-            longNote = self._longNoteOf(note)
-            if longNote is not None:
-                skyNote = next(
-                    (
-                        s
-                        for s in self.editing.chart.skyNotes
-                        if s.id == longNote.skyNote
-                    ),
-                    None,
-                )
-            else:
-                skyNote = next(
-                    (s for s in self.editing.chart.skyNotes if s.id == note.id), None
-                )
+            skyNote = self.editing.skyNoteOf(note)
             if skyNote is None:
                 continue
+            longNote = self._longNoteOf(note)
             self.editing.pushAction(
                 SkyNoteAction(
                     type="sky_remove", data=skyNote, note=note, longNote=longNote
@@ -1533,10 +1510,7 @@ class ChartViewWidget(QWidget):
                 )
                 if step is not None
             ]
-            skyNote = next(
-                (s for s in self.editing.chart.skyNotes if s.id == longNote.skyNote),
-                None,
-            )
+            skyNote = self.editing.longNoteSkyNote(longNote)
             self.editing.pushAction(
                 LongNoteAction(
                     type="long_note_remove",
@@ -2169,7 +2143,7 @@ class ChartViewWidget(QWidget):
             # スカイノーツ付きロングノーツの全ステップID（始点・終点・コネクター）
             longSkyNoteIds: set[int] = set()
             for ln in self.editing.chart.longNotes:
-                if ln.skyNote:
+                if self.editing.longNoteSkyNote(ln) is not None:
                     longSkyNoteIds.update(ln.steps)
 
             for note in sorted(
@@ -2388,7 +2362,7 @@ class ChartViewWidget(QWidget):
 
             # スカイノーツ付きロングノーツはスカイのテクスチャ
             brushPixmap = self.longNotePixMap
-            if longNote.skyNote:
+            if self.editing.longNoteSkyNote(longNote) is not None:
                 startFlag = stepNotes[0].flag
                 if startFlag == NoteFlag.trace and not self.skyTraceNotePixMap.isNull():
                     brushPixmap = self.skyTraceNotePixMap

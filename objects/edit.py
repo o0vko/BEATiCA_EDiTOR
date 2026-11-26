@@ -64,29 +64,45 @@ class EditingChart:
     # 編集中のスカイノーツの選択中knotインデックス
     selectedKnotIndex: int | None = None
 
+    def longNoteSkyNote(self, longNote: LongNote) -> SkyNote | None:
+        """ロングノーツに紐づくSkyNoteを返す。
+
+        スカイノーツは常に「アンカーノーツのid」で識別する（通常ノーツと同じ
+        規則）。ロングノーツのアンカーは始点(steps[0])。LongNote.skyNote は
+        旧形式との互換用に保持するが、判定には使わない。
+        """
+        candidateIds = []
+        if longNote.steps:
+            candidateIds.append(longNote.steps[0])
+        if longNote.skyNote:
+            candidateIds.append(longNote.skyNote)
+        for skyId in candidateIds:
+            skyNote = next(
+                (s for s in self.chart.skyNotes if s.id == skyId),
+                None,
+            )
+            if skyNote is not None:
+                return skyNote
+        return None
+
+    def skyNoteOf(self, note: Note) -> SkyNote | None:
+        """ノーツに紐づくSkyNoteを返す（ロングノーツは本体に紐づく）"""
+        if note.flag == NoteFlag.longNote:
+            longNote = next(
+                (ln for ln in self.chart.longNotes if note.id in ln.steps),
+                None,
+            )
+            if longNote is None:
+                return None
+            return self.longNoteSkyNote(longNote)
+        return next((s for s in self.chart.skyNotes if s.id == note.id), None)
+
     def selectedSkyNote(self):
         """選択ノーツに紐づくSkyNoteとノーツを返す（無ければ(None, None)）"""
         for note in self.selectedNotes:
-            if note.flag == NoteFlag.longNote:
-                # ロングノーツのスカイノーツは本体(LongNote.skyNote)に紐づく。
-                # 始点以外（終点・コネクター）を選択していても判定できるようにする。
-                longNote = next(
-                    (ln for ln in self.chart.longNotes if note.id in ln.steps),
-                    None,
-                )
-                if longNote is not None and longNote.skyNote:
-                    skyNote = next(
-                        (s for s in self.chart.skyNotes if s.id == longNote.skyNote),
-                        None,
-                    )
-                    if skyNote is not None:
-                        return note, skyNote
-            else:
-                skyNote = next(
-                    (s for s in self.chart.skyNotes if s.id == note.id), None
-                )
-                if skyNote is not None:
-                    return note, skyNote
+            skyNote = self.skyNoteOf(note)
+            if skyNote is not None:
+                return note, skyNote
         return None, None
 
     def __post_init__(self):

@@ -183,9 +183,9 @@ class FrontViewWidget(QWidget):
 
         # ロングノーツのスカイノーツ（始点〜終点を補間）
         for longNote in self.editing.chart.longNotes:
-            if not longNote.skyNote or len(longNote.steps) < 2:
+            if len(longNote.steps) < 2:
                 continue
-            skyNote = skyNotes.get(longNote.skyNote)
+            skyNote = self.editing.longNoteSkyNote(longNote)
             if skyNote is None:
                 continue
             startNote = next(
@@ -255,12 +255,9 @@ class FrontViewWidget(QWidget):
 
         # ロングノーツのスカイノーツ
         for longNote in self.editing.chart.longNotes:
-            if not longNote.skyNote or len(longNote.steps) < 2:
+            if len(longNote.steps) < 2:
                 continue
-            skyNote = next(
-                (s for s in self.editing.chart.skyNotes if s.id == longNote.skyNote),
-                None,
-            )
+            skyNote = self.editing.longNoteSkyNote(longNote)
             if skyNote is None:
                 continue
             startNote = next(

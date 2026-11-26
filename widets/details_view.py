@@ -348,11 +348,8 @@ class DetailsViewWidget(QWidget):
         )
 
     def _noteHasSky(self, note) -> bool:
-        """ロングノーツは本体(LongNote.skyNote)、通常ノーツは同一idで判定"""
-        longNote = self._containingLongNote(note)
-        if longNote is not None:
-            return bool(longNote.skyNote)
-        return note.id in {s.id for s in self.editing.chart.skyNotes}
+        """通常/ロングノーツ alike で「アンカーノーツのid」により判定"""
+        return self.editing.skyNoteOf(note) is not None
 
     def _isConnector(self, note) -> bool:
         ln = self._containingLongNote(note)
