@@ -1003,31 +1003,38 @@ class ChartViewWidget(QWidget):
 
     def _buildSkyNote(self, note: Note) -> SkyNote:
         """ノーツ用のSkyNoteを作成（knotは初期1つ）"""
+        anchor = note
+        skyId = note.id
         if note.flag == NoteFlag.longNote:
-            longNote = next(
-                (
-                    ln
-                    for ln in self.editing.chart.longNotes
-                    if ln.steps and ln.steps[0] == note.id
-                ),
-                None,
-            )
-            if longNote and len(longNote.steps) >= 2:
-                next(
-                    (n for n in self.editing.chart.notes if n.id == longNote.steps[-1]),
-                    None,
+            # ロングノーツのスカイノーツは本体に紐づき、knotは始点に置く
+            longNote = self._longNoteContaining(note)
+            if longNote is not None and longNote.steps:
+                anchor = next(
+                    (
+                        n
+                        for n in self.editing.chart.notes
+                        if n.id == longNote.steps[0]
+                    ),
+                    note,
                 )
-                startLane = note.lane
-                return SkyNote(
-                    id=note.id,
-                    floatings=[
-                        SkyNoteFloating(beat=note.beat, lane=startLane, positionY=0.0)
-                    ],
-                )
+            # LongNote.skyNote は 0 を「スカイノーツなし」として扱うため、
+            # 0 や既存idと衝突しない新しいidを割り当てる
+            usedIds = {n.id for n in self.editing.chart.notes} | {
+                s.id for s in self.editing.chart.skyNotes
+            }
+            skyId = self.editing.nextNoteId
+            self.editing.nextNoteId += 1
+            while skyId == 0 or skyId in usedIds:
+                skyId = self.editing.nextNoteId
+                self.editing.nextNoteId += 1
 
         return SkyNote(
-            id=note.id,
-            floatings=[SkyNoteFloating(beat=note.beat, lane=note.lane, positionY=0.0)],
+            id=skyId,
+            floatings=[
+                SkyNoteFloating(
+                    beat=anchor.beat, lane=anchor.lane, positionY=0.0
+                )
+            ],
         )
 
     def _longNoteContaining(self, note: Note) -> LongNote | None:
@@ -1044,20 +1051,16 @@ class ChartViewWidget(QWidget):
         return any(s.id == note.id for s in self.editing.chart.skyNotes)
 
     def _longNoteOf(self, note: Note) -> LongNote | None:
-        # スカイノーツを付ける対象は始点（steps[0]）のロングノーツ
-        return next(
-            (
-                ln
-                for ln in self.editing.chart.longNotes
-                if ln.steps and ln.steps[0] == note.id
-            ),
-            None,
-        )
+        # スカイノーツはロングノーツ本体に紐づくため、どのステップを選択して
+        # いても（始点・終点・コネクター）所属するロングノーツを返す
+        return self._longNoteContaining(note)
 
     def attachSkyNoteToSelection(self):
         """選択ノーツにスカイノーツを付ける（ロングノーツは始点id・LongNote.skyNote）"""
         for note in list(self.editing.selectedNotes):
-            if note.skyNote and self._isSkyNote(note):
+            # ロングノーツは本体にスカイノーツが付くため、note.skyNote ではなく
+            # 所属ロングノーツの状態で判定する
+            if self._isSkyNote(note):
                 continue
             skyNote = self._buildSkyNote(note)
             longNote = self._longNoteOf(note)

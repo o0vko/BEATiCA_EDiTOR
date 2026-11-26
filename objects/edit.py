@@ -68,12 +68,10 @@ class EditingChart:
         """選択ノーツに紐づくSkyNoteとノーツを返す（無ければ(None, None)）"""
         for note in self.selectedNotes:
             if note.flag == NoteFlag.longNote:
+                # ロングノーツのスカイノーツは本体(LongNote.skyNote)に紐づく。
+                # 始点以外（終点・コネクター）を選択していても判定できるようにする。
                 longNote = next(
-                    (
-                        ln
-                        for ln in self.chart.longNotes
-                        if ln.steps and ln.steps[0] == note.id
-                    ),
+                    (ln for ln in self.chart.longNotes if note.id in ln.steps),
                     None,
                 )
                 if longNote is not None and longNote.skyNote:

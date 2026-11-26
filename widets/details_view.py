@@ -3,11 +3,13 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QSpinBox,
     QTabWidget,
@@ -41,22 +43,34 @@ class DetailsViewWidget(QWidget):
         self.tabs = QTabWidget()
 
         # 譜面プロパティタブ
-        self.chartTab = QWidget()
         self.setupChartTab()
         self.tabs.addTab(self.chartTab, "譜面プロパティ")
 
         # ノーツプロパティタブ
-        self.noteTab = QWidget()
         self.setupNoteTab()
         self.tabs.addTab(self.noteTab, "ノーツプロパティ")
 
         # 表示設定タブ
-        self.viewTab = QWidget()
         self.setupViewTab()
         self.tabs.addTab(self.viewTab, "表示設定")
 
         layout.addWidget(self.tabs)
         self.setLayout(layout)
+
+    @staticmethod
+    def _scrollable(layout) -> QScrollArea:
+        """タブ内容をスクロール可能にする。
+
+        スカイノーツの knot 一覧が現れると縦に伸び、スクロール出来ないと
+        ウィジェットからはみ出す（タブ切替で再レイアウトされるまで直らない）。
+        """
+        content = QWidget()
+        content.setLayout(layout)
+        area = QScrollArea()
+        area.setWidget(content)
+        area.setWidgetResizable(True)
+        area.setFrameShape(QFrame.Shape.NoFrame)
+        return area
 
     def setupViewTab(self):
         layout = QVBoxLayout()
@@ -91,7 +105,7 @@ class DetailsViewWidget(QWidget):
         layout.addWidget(laneLabel)
         layout.addWidget(self.laneDivisionCombo)
 
-        self.viewTab.setLayout(layout)
+        self.viewTab = self._scrollable(layout)
 
     def onZoomChanged(self, value: float):
         self.zoomChanged.emit(value)
@@ -181,7 +195,7 @@ class DetailsViewWidget(QWidget):
         layout.addWidget(offsetLabel)
         layout.addWidget(self.offset)
 
-        self.chartTab.setLayout(layout)
+        self.chartTab = self._scrollable(layout)
 
     def setupNoteTab(self):
         layout = QVBoxLayout()
@@ -274,7 +288,7 @@ class DetailsViewWidget(QWidget):
         knotButtonRow.addWidget(self.removeKnotButton)
         layout.addLayout(knotButtonRow)
 
-        self.noteTab.setLayout(layout)
+        self.noteTab = self._scrollable(layout)
 
         # 非スカイ時に幅が半分にならないよう横方向はExpandedに固定
         for w in (
@@ -332,6 +346,13 @@ class DetailsViewWidget(QWidget):
             (ln for ln in self.editing.chart.longNotes if note.id in ln.steps),
             None,
         )
+
+    def _noteHasSky(self, note) -> bool:
+        """ロングノーツは本体(LongNote.skyNote)、通常ノーツは同一idで判定"""
+        longNote = self._containingLongNote(note)
+        if longNote is not None:
+            return bool(longNote.skyNote)
+        return note.id in {s.id for s in self.editing.chart.skyNotes}
 
     def _isConnector(self, note) -> bool:
         ln = self._containingLongNote(note)
@@ -403,9 +424,8 @@ class DetailsViewWidget(QWidget):
         self.flickTypeCombo.blockSignals(False)
 
         # スカイノーツの付与/解除ボタンの有効/無効
-        skyIds = {s.id for s in self.editing.chart.skyNotes}
-        anySky = any(n.id in skyIds for n in selected)
-        allSky = all(n.id in skyIds for n in selected)
+        anySky = any(self._noteHasSky(n) for n in selected)
+        allSky = all(self._noteHasSky(n) for n in selected)
         self.attachSkyButton.setEnabled(not allSky)
         self.detachSkyButton.setEnabled(anySky)
 
