@@ -39,7 +39,13 @@ from PySide6.QtWidgets import (
 )
 
 from etc import constants as Const
-from objects.edit import EditingChart, EditMode, NoteAction, SkyNoteAction
+from objects.edit import (
+    EditingChart,
+    EditMode,
+    LongNoteAction,
+    NoteAction,
+    SkyNoteAction,
+)
 from objects.note import (
     Change,
     CurveType,
@@ -1512,30 +1518,50 @@ class ChartViewWidget(QWidget):
         """ノーツを削除（スカイノーツも同時）"""
         longNote = self._longNoteContaining(note)
         if longNote is not None:
+            # ロングノーツは一部だけ消すと不整合になるため本体ごと削除する
+            stepNotes = [
+                step
+                for step in (
+                    next(
+                        (n for n in self.editing.chart.notes if n.id == stepId),
+                        None,
+                    )
+                    for stepId in longNote.steps
+                )
+                if step is not None
+            ]
             skyNote = next(
                 (s for s in self.editing.chart.skyNotes if s.id == longNote.skyNote),
                 None,
             )
-            if skyNote is not None:
-                self.editing.pushAction(
-                    SkyNoteAction(
-                        type="sky_remove", data=skyNote, note=note, longNote=longNote
-                    )
+            self.editing.pushAction(
+                LongNoteAction(
+                    type="long_note_remove",
+                    data=longNote,
+                    notes=stepNotes,
+                    skyNote=skyNote,
                 )
-        else:
-            skyNote = next(
-                (s for s in self.editing.chart.skyNotes if s.id == note.id), None
             )
-            if skyNote is not None:
-                self.editing.pushAction(
-                    SkyNoteAction(type="sky_remove", data=skyNote, note=note)
-                )
+            return
+
+        skyNote = next(
+            (s for s in self.editing.chart.skyNotes if s.id == note.id), None
+        )
+        if skyNote is not None:
+            self.editing.pushAction(
+                SkyNoteAction(type="sky_remove", data=skyNote, note=note)
+            )
         self.editing.pushAction(NoteAction(type="note_remove", data=note))
 
     def deleteSelectedNotes(self):
+        removedLongNotes = set()
         for note in list(self.editing.selectedNotes):
-            if note.flag == NoteFlag.longNote:
-                continue
+            longNote = self._longNoteContaining(note)
+            if longNote is not None:
+                # 同じロングノーツの重複選択では一度だけ削除する
+                if longNote.id in removedLongNotes:
+                    continue
+                removedLongNotes.add(longNote.id)
             self._removeNote(note)
         self.editing.selectedNotes.clear()
         self.noteSelectionChanged.emit()
@@ -2677,7 +2703,9 @@ class ChartViewWidget(QWidget):
             painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
 
         elif mode in (EditMode.LONG_NOTE, EditMode.LONG_NOTE_CONNECTOR):
-            # ロングノーツプレビュー
+            # ロングノーツプレビュー（通常ノーツと同じ幅=4で描画）
+            previewWidth = 4 * Const.NOTE_WIDTH
+            halfPreviewWidth = previewWidth / 2
             if mode == EditMode.LONG_NOTE_CONNECTOR:
                 # コネクタープレビュー（マウス位置に半透明コネクターノーツ）
                 rect = QRect(
@@ -2685,7 +2713,7 @@ class ChartViewWidget(QWidget):
                     round(
                         self.getYPointFromBeat(self.hoverBeat) - Const.NOTE_HEIGHT / 2
                     ),
-                    Const.NOTE_WIDTH,
+                    round(previewWidth),
                     Const.NOTE_HEIGHT,
                 )
                 pixmap = (
@@ -2704,7 +2732,7 @@ class ChartViewWidget(QWidget):
                 startRect = QRect(
                     round(self.getXPointFromLane(startLane)),
                     round(self.getYPointFromBeat(startBeat) - Const.NOTE_HEIGHT / 2),
-                    Const.NOTE_WIDTH,
+                    round(previewWidth),
                     Const.NOTE_HEIGHT,
                 )
                 painter.drawPixmap(
@@ -2718,7 +2746,7 @@ class ChartViewWidget(QWidget):
                 endRect = QRect(
                     round(self.getXPointFromLane(endLane)),
                     round(self.getYPointFromBeat(endBeat) - Const.NOTE_HEIGHT / 2),
-                    Const.NOTE_WIDTH,
+                    round(previewWidth),
                     Const.NOTE_HEIGHT,
                 )
                 painter.drawPixmap(
@@ -2729,17 +2757,16 @@ class ChartViewWidget(QWidget):
                 )
 
                 # 台形プレビュー（半透明・テクスチャ）
-                startX = self.getXPointFromLane(startLane) + Const.NOTE_WIDTH / 2
+                startX = self.getXPointFromLane(startLane) + halfPreviewWidth
                 startY = self.getYPointFromBeat(startBeat)
-                endX = self.getXPointFromLane(endLane) + Const.NOTE_WIDTH / 2
+                endX = self.getXPointFromLane(endLane) + halfPreviewWidth
                 endY = self.getYPointFromBeat(endBeat)
 
-                halfW = Const.NOTE_WIDTH / 2
                 points = [
-                    QPointF(startX - halfW, startY),
-                    QPointF(startX + halfW, startY),
-                    QPointF(endX + halfW, endY),
-                    QPointF(endX - halfW, endY),
+                    QPointF(startX - halfPreviewWidth, startY),
+                    QPointF(startX + halfPreviewWidth, startY),
+                    QPointF(endX + halfPreviewWidth, endY),
+                    QPointF(endX - halfPreviewWidth, endY),
                 ]
 
                 if not self.longNotePixMap.isNull():
@@ -2754,7 +2781,7 @@ class ChartViewWidget(QWidget):
                     textureBrush.setTransform(
                         painter.transform()
                         .inverted()[0]
-                        .scale(1.0 / Const.NOTE_WIDTH, 1.0 / (endY - startY))
+                        .scale(1.0 / previewWidth, 1.0 / (endY - startY))
                         if endY != startY
                         else painter.transform()
                     )
@@ -2772,7 +2799,7 @@ class ChartViewWidget(QWidget):
                     round(
                         self.getYPointFromBeat(self.hoverBeat) - Const.NOTE_HEIGHT / 2
                     ),
-                    Const.NOTE_WIDTH,
+                    round(previewWidth),
                     Const.NOTE_HEIGHT,
                 )
                 painter.drawPixmap(

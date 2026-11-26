@@ -5,7 +5,9 @@ from typing import Any, Literal
 from objects.chart import Chart
 from objects.note import LongNote, Note, NoteFlag, SkyNote
 
-ActionType = Literal["note_place", "note_remove", "sky_place", "sky_remove"]
+ActionType = Literal[
+    "note_place", "note_remove", "long_note_remove", "sky_place", "sky_remove"
+]
 
 
 @dataclass(kw_only=True)
@@ -18,6 +20,15 @@ class Action:
 class NoteAction(Action):
     data: Note
     # スカイノーツの場合、ノーツと同一idのSkyNoteを一緒に扱う
+    skyNote: SkyNote | None = None
+
+
+@dataclass(kw_only=True)
+class LongNoteAction(Action):
+    """ロングノーツをまとめて削除/復元する（始点・終点・支点のノーツごと）"""
+
+    data: LongNote
+    notes: list[Note]
     skyNote: SkyNote | None = None
 
 
@@ -144,6 +155,33 @@ class EditingChart:
                 else:
                     self.chart.notes.append(action.data)
                     addSkyNote()
+
+            self.chart.notes.sort(key=lambda n: n.beat)
+            return True
+        if isinstance(action, LongNoteAction):
+            # ロングノーツは本体と全ステップのノーツを同一操作で扱う
+            stepIds = {note.id for note in action.notes}
+            if redo:
+                self.chart.longNotes[:] = [
+                    ln for ln in self.chart.longNotes if ln.id != action.data.id
+                ]
+                self.chart.notes[:] = [
+                    n for n in self.chart.notes if n.id not in stepIds
+                ]
+                if action.skyNote is not None:
+                    self.chart.skyNotes[:] = [
+                        s for s in self.chart.skyNotes if s.id != action.skyNote.id
+                    ]
+            else:
+                if all(ln.id != action.data.id for ln in self.chart.longNotes):
+                    self.chart.longNotes.append(action.data)
+                for note in action.notes:
+                    if all(n.id != note.id for n in self.chart.notes):
+                        self.chart.notes.append(note)
+                if action.skyNote is not None and all(
+                    s.id != action.skyNote.id for s in self.chart.skyNotes
+                ):
+                    self.chart.skyNotes.append(action.skyNote)
 
             self.chart.notes.sort(key=lambda n: n.beat)
             return True
