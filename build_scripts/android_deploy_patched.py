@@ -17,7 +17,8 @@ pyside6-android-deploy hardcodes ``python3,shiboken6,PySide6`` and would
 otherwise ship an APK without the app's own dependencies.  For the same reason
 ``BEATiCA_ANDROID_INCLUDE_EXTS`` extends ``app.source.include_exts``, which
 defaults to ``py,png,jpg,kv,atlas`` and silently drops files such as
-``assets/sounds/*.wav``.
+``assets/sounds/*.wav``.  ``BEATiCA_ANDROID_ORIENTATION`` overrides
+``app.orientation``, which buildozer defaults to ``portrait``.
 
 This wrapper can be removed once the host PySide6 includes the upstream fix
 (6.12.1 and later).
@@ -130,8 +131,30 @@ def _install_include_exts_workaround() -> None:
     BuildozerConfig._extra_include_exts_workaround = True
 
 
+def _install_orientation_workaround() -> None:
+    if getattr(BuildozerConfig, "_orientation_workaround", False):
+        return
+
+    original_init = BuildozerConfig.__init__
+
+    def __init__(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
+        orientation = os.environ.get("BEATiCA_ANDROID_ORIENTATION", "").strip()
+        if not orientation:
+            return
+        # buildozer defaults to portrait, which is wrong for a chart editor.
+        self.set_value("app", "orientation", orientation)
+        # BuildozerConfig writes the spec file at the end of __init__; rewrite it
+        # so the orientation reaches buildozer.
+        self.update_config()
+
+    BuildozerConfig.__init__ = __init__
+    BuildozerConfig._orientation_workaround = True
+
+
 _install_workaround()
 _install_requirements_workaround()
 _install_include_exts_workaround()
+_install_orientation_workaround()
 
 runpy.run_path(str(scripts_dir / "android_deploy.py"), run_name="__main__")

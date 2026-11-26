@@ -31,6 +31,9 @@ from widets.settings_view import SettingsDialog, applySavedAudioSettings
 
 ICON_SIZES = {"small": 20, "medium": 32, "large": 48}
 
+# p4a sets ANDROID_PRIVATE (and getandroidapkpath) inside the APK.
+IS_ANDROID = "ANDROID_PRIVATE" in os.environ or hasattr(sys, "getandroidapkpath")
+
 
 class MainWindow(QMainWindow):
     def __init__(self, parent=None):
@@ -83,6 +86,10 @@ class MainWindow(QMainWindow):
 
     def setupMenubar(self):
         menubar = self.menuBar()
+        if IS_ANDROID:
+            # Qt for Android keeps the menu bar hidden (it expects a native
+            # menu button), so ask for the widget form to get a visible bar.
+            menubar.setNativeMenuBar(False)
 
         # ファイル
         fileMenu = QMenu("ファイル", self)

@@ -20,6 +20,9 @@ ANDROID_REQUIREMENTS = "qtawesome,qtpy"
 # (py,png,jpg,kv,atlas) drops the app's sound effects.
 ANDROID_INCLUDE_EXTS = "wav"
 
+# buildozer defaults to portrait; the editor is designed for landscape.
+ANDROID_ORIENTATION = "landscape"
+
 
 def verify_android_apk(apk: Path) -> None:
     """Make sure QtLoader cannot reference a native library missing from the APK."""
@@ -139,6 +142,7 @@ def main():
         env = os.environ.copy()
         env["BEATiCA_ANDROID_REQUIREMENTS"] = ANDROID_REQUIREMENTS
         env["BEATiCA_ANDROID_INCLUDE_EXTS"] = ANDROID_INCLUDE_EXTS
+        env["BEATiCA_ANDROID_ORIENTATION"] = ANDROID_ORIENTATION
         if wheel_pyside:
             cmd += ["--wheel-pyside", wheel_pyside]
         if wheel_shiboken:
