@@ -40,7 +40,6 @@ extra_args = --quiet --noinclude-qt-translations --include-data-dir=assets=asset
 [buildozer]
 mode = debug
 log_level = 2
-build_dir = /home/runner/p4a_build
 recipe_dir = 
 jars_dir = 
 ndk_path = 

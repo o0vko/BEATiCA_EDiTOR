@@ -108,7 +108,17 @@ jobs:
           ANDROID_NDK_API: "21"
         run: |
           set -uo pipefail
-          trap 'echo "=== TRAP config.log dump ==="; find . "$HOME" -name config.log 2>/dev/null | while read -r f; do echo "===== $f ====="; tail -n 150 "$f" 2>/dev/null || true; done' EXIT
+          mkdir -p /home/runner/cl
+          # config.logが現れた瞬間に退避（buildozerが後で消すため）
+          ( while true; do
+              find /home/runner/work -name config.log 2>/dev/null | while read -r f; do
+                d="/home/runner/cl/$(echo "$f" | md5sum | cut -c1-8)-$(basename "$(dirname "$f")")"
+                [ -f "$d" ] || cp "$f" "$d" 2>/dev/null || true
+              done
+              sleep 0.2
+            done ) &
+          WATCHER=$!
+          trap 'kill $WATCHER 2>/dev/null || true; echo "=== captured config.log ==="; for f in /home/runner/cl/*; do [ -f "$f" ] && { echo "===== $f ====="; tail -n 200 "$f"; }; done' EXIT
           uv run build.py
 
       - name: Dump config.log on failure
