@@ -36,6 +36,12 @@ dev = [
     { name = "ruff" },
     { name = "ty" },
 ]
+ios = [
+    { name = "certifi" },
+    { name = "jinja2" },
+    { name = "pkginfo" },
+    { name = "tqdm" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -58,6 +64,12 @@ dev = [
     { name = "pyright", specifier = ">=1.1.414" },
     { name = "ruff", specifier = ">=0.17.6" },
     { name = "ty", specifier = ">=0.0.107" },
+]
+ios = [
+    { name = "certifi" },
+    { name = "jinja2" },
+    { name = "pkginfo" },
+    { name = "tqdm" },
 ]
 
 [[package]]
@@ -85,6 +97,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/4d/49/97973d2eb1225f67dbaf22bc5d2100cd333a66a100d78ebff6d4acc5a50a/buildozer-1.6.0.tar.gz", hash = "sha256:ad33ae18c3476ae131743f9b5df124936e64c199722e54a15838c952b9115381", size = 174131, upload-time = "2026-05-12T11:30:36.829Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/1c/722a82c999a500e73fba6a7d1ef40e770db2b6f68947ef0f92ff30550812/buildozer-1.6.0-py3-none-any.whl", hash = "sha256:adf30b983dfc6881a10f6a1fc13b09056a92e526519db7ebbd3d008a788cbde3", size = 92684, upload-time = "2026-05-12T11:30:35.32Z" },
+]
+
+[[package]]
+name = "certifi"
+version = "2026.11.20"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/51/33/4cd27639502f010084bcef7a2036391dd637439901341ce1a530f36f6e51/certifi-2026.11.20.tar.gz", hash = "sha256:af1cb240a8133f105aa52684a3a3258339d7f2fd0bd4e2812698ff5cf5588c4e", size = 128901, upload-time = "2026-11-20T23:37:49.522Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6d/39/5eec3296860b94ac20bb8ed807725b88f6adfab3f343df592afd975f5f86/certifi-2026.11.20-py3-none-any.whl", hash = "sha256:7422df25243767b9877031a2248cb14d09ddac9beee846f4cef3d5c9191d488f", size = 127913, upload-time = "2026-11-20T23:37:48.117Z" },
 ]
 
 [[package]]
