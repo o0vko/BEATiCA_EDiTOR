@@ -118,7 +118,7 @@ jobs:
               sleep 0.2
             done ) &
           WATCHER=$!
-          trap 'kill $WATCHER 2>/dev/null || true; echo "=== captured config.log ==="; for f in /home/runner/cl/*; do [ -f "$f" ] && { echo "===== $f ====="; tail -n 200 "$f"; }; done' EXIT
+          trap 'kill $WATCHER 2>/dev/null || true; echo "=== captured config.log ==="; for f in /home/runner/cl/*; do [ -f "$f" ] && { echo "===== $f ====="; cat "$f"; }; done' EXIT
           uv run build.py
 
       - name: Dump config.log on failure
