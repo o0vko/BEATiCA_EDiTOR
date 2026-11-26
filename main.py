@@ -10,7 +10,6 @@ from PySide6.QtCore import QSettings, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QKeyEvent, QPalette
 from PySide6.QtWidgets import (
     QApplication,
-    QFileDialog,
     QMainWindow,
     QMenu,
     QMessageBox,
@@ -27,6 +26,7 @@ from objects.serialize import loadProject, saveBinary, saveProject
 from objects.types import FixedInteger
 from widets.chart_view import ChartViewWidget
 from widets.details_view import DetailsViewWidget
+from widets.file_dialogs import FileDialogController
 from widets.front_view import FrontViewWidget
 from widets.settings_view import SettingsDialog, applySavedAudioSettings
 
@@ -49,13 +49,6 @@ def writableDataDir() -> Path:
         if location:
             return Path(location)
     return Const.ASSETS_PATH.parent
-
-
-def fileDialogOptions() -> QFileDialog.Options:
-    """Android のネイティブダイアログはキャンセルで固まるためアプリ内で描画する"""
-    if IS_ANDROID:
-        return QFileDialog.Option.DontUseNativeDialog
-    return QFileDialog.Options()
 
 
 class MainWindow(QMainWindow):
@@ -103,6 +96,12 @@ class MainWindow(QMainWindow):
         self.currentProjectPath: Path | None = None
         # 終了時の保存確認用（初期状態は保存済み扱い）
         self._savedFingerprint = self._chartFingerprint()
+        # 非同期ファイルダイアログ
+        self._pendingFileAction: str | None = None
+        self._closeAfterSave = False
+        self.fileDialogs = FileDialogController(self)
+        self.fileDialogs.chosen.connect(self._onFileChosen)
+        self.fileDialogs.rejected.connect(self._onFileRejected)
 
         self.setupWidget()
         self.setupToolbar()
@@ -258,8 +257,10 @@ class MainWindow(QMainWindow):
         if clicked is cancelButton or clicked is None:
             event.ignore()
             return
-        if clicked is saveButton and not self.saveProject():
-            # 保存ダイアログがキャンセルされた
+        if clicked is saveButton:
+            # 保存ダイアログは非同期なので、選択後に改めて close() する
+            self._closeAfterSave = True
+            self._startSaveProject()
             event.ignore()
             return
         event.accept()
@@ -270,70 +271,87 @@ class MainWindow(QMainWindow):
         if IS_ANDROID:
             QApplication.quit()
 
-    def importAudio(self):
-        filename, _ = QFileDialog.getOpenFileName(
-            self,
-            "音声ファイルを開く",
-            "",
-            "音声ファイル (*.wav *.ogg *.mp3)",
-            options=fileDialogOptions(),
-        )
-        if filename:
-            self.bgmPath = filename
-            self.player.setSource(QUrl.fromLocalFile(filename))
-            self.chartAreaCanvas.syncWidth()
+    def _toUrl(self, path: str) -> QUrl:
+        """content:// はそのまま、それ以外はローカルパスとして扱う"""
+        return QUrl(path) if path.startswith("content://") else QUrl.fromLocalFile(path)
 
-    def saveProject(self) -> bool:
-        """プロジェクトを保存。キャンセル時は False を返す"""
-        path, _ = QFileDialog.getSaveFileName(
-            self,
-            "プロジェクトを保存",
-            "",
-            "BEATiCA Project (*.beaproj)",
-            options=fileDialogOptions(),
+    def _startOpenAudio(self):
+        self._pendingFileAction = "importAudio"
+        self.fileDialogs.openFile(
+            self, "音声ファイルを開く", "音声ファイル (*.wav *.ogg *.mp3)"
         )
-        if not path:
-            return False
-        if not path.endswith(".beaproj"):
-            path += ".beaproj"
-        self.currentProjectPath = Path(path)
-        saveProject(self.editing.chart, Path(path), self.bgmPath)
-        self.markSaved()
-        return True
+
+    def _startSaveProject(self):
+        self._pendingFileAction = "saveProject"
+        suggested = (
+            str(self.currentProjectPath) if self.currentProjectPath else "untitled.beaproj"
+        )
+        self.fileDialogs.saveFile(
+            self, "プロジェクトを保存", "BEATiCA Project (*.beaproj)", suggested
+        )
+
+    def _startLoadProject(self):
+        self._pendingFileAction = "loadProject"
+        self.fileDialogs.openFile(
+            self, "プロジェクトを開く", "BEATiCA Project (*.beaproj)"
+        )
+
+    def _startExportBinary(self):
+        self._pendingFileAction = "exportBinary"
+        self.fileDialogs.saveFile(
+            self, "本番書き出し", "BEATiCA Chart (*.bea)", "chart.bea"
+        )
+
+    def importAudio(self):
+        self._startOpenAudio()
+
+    def saveProject(self):
+        self._startSaveProject()
 
     def loadProject(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "プロジェクトを開く",
-            "",
-            "BEATiCA Project (*.beaproj)",
-            options=fileDialogOptions(),
-        )
-        if not path:
-            return
-        chart, bgm = loadProject(Path(path))
-        self.editing.loadChart(chart)
-        self.currentProjectPath = Path(path)
-        self.bgmPath = bgm or None
-        if bgm:
-            self.player.setSource(QUrl.fromLocalFile(bgm))
-        self.chartAreaCanvas.onChartChanged()
-        self.detailsView.updateNoteInfo()
-        self.markSaved()
+        self._startLoadProject()
 
     def exportBinary(self):
-        path, _ = QFileDialog.getSaveFileName(
-            self,
-            "本番書き出し",
-            "",
-            "BEATiCA Chart (*.bea)",
-            options=fileDialogOptions(),
-        )
+        self._startExportBinary()
+
+    def _onFileRejected(self):
+        self._pendingFileAction = None
+        if self._closeAfterSave:
+            # 保存されなかったので終了は中止
+            self._closeAfterSave = False
+
+    def _onFileChosen(self, path: str):
+        action = self._pendingFileAction
+        self._pendingFileAction = None
         if not path:
+            self._onFileRejected()
             return
-        if not path.endswith(".bea"):
-            path += ".bea"
-        saveBinary(self.editing.chart, Path(path))
+
+        if action == "importAudio":
+            self.bgmPath = path
+            self.player.setSource(self._toUrl(path))
+            self.chartAreaCanvas.syncWidth()
+        elif action == "saveProject":
+            target = path if path.endswith(".beaproj") else f"{path}.beaproj"
+            self.currentProjectPath = Path(target)
+            saveProject(self.editing.chart, Path(target), self.bgmPath)
+            self.markSaved()
+            if self._closeAfterSave:
+                self._closeAfterSave = False
+                self.close()
+        elif action == "loadProject":
+            chart, bgm = loadProject(Path(path))
+            self.editing.loadChart(chart)
+            self.currentProjectPath = Path(path)
+            self.bgmPath = bgm or None
+            if bgm:
+                self.player.setSource(self._toUrl(bgm))
+            self.chartAreaCanvas.onChartChanged()
+            self.detailsView.updateNoteInfo()
+            self.markSaved()
+        elif action == "exportBinary":
+            target = path if path.endswith(".bea") else f"{path}.bea"
+            saveBinary(self.editing.chart, Path(target))
 
     # --- オートセーブ ---
     def setupAutosave(self):
