@@ -1,4 +1,3 @@
-
 name: Build and Release
 
 on:
@@ -385,7 +384,7 @@ jobs:
         shell: bash
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          RELEASE_URL: ${{ steps.release.outputs.html_url }}
+          RELEASE_URL: ${{ steps.release.outputs.url }}
         run: |
           set -euo pipefail
 
@@ -394,7 +393,7 @@ jobs:
             exit 0
           fi
 
-          CONTENT="BEATiCA EDiTOR ビルド完了 (${{ github.ref_name }}) ${RELEASE_URL}"
+          CONTENT="**BEATiCA EDiTOR** New version Released\n${RELEASE_URL}"
 
           curl -sS \
             -H "Content-Type: application/json" \
