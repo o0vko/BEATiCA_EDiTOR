@@ -83,9 +83,7 @@ class ChartViewWidget(QWidget):
 
         # ノーツ配置・通過時のタップ音
         self.noteTap = QtMultimedia.QSoundEffect(self)
-        self.noteTap.setSource(
-            QUrl.fromLocalFile(str(Const.SOUNDS_PATH / "perfect.wav"))
-        )
+        self.noteTap.setSource(Const.assetUrl("sounds", "perfect.wav"))
         self.noteTap.setVolume(1.0)
 
         self.setMouseTracking(True)
@@ -155,17 +153,23 @@ class ChartViewWidget(QWidget):
         self.resizeStartLane: float = 0.0
         self.resizeStartX: float = 0.0
 
-        self.tapNotePixMap = QPixmap(Const.IMAGES_PATH / "tap_note.png")
-        self.traceNotePixMap = QPixmap(Const.IMAGES_PATH / "trace_note.png")
-        self.longNotePixMap = QPixmap(Const.IMAGES_PATH / "long_note.png")
+        self.tapNotePixMap = QPixmap(Const.assetPath("images", "tap_note.png"))
+        self.traceNotePixMap = QPixmap(Const.assetPath("images", "trace_note.png"))
+        self.longNotePixMap = QPixmap(Const.assetPath("images", "long_note.png"))
         self.longNoteConnectorPixMap = QPixmap(
-            Const.IMAGES_PATH / "long_note_connector.png"
+            Const.assetPath("images", "long_note_connector.png")
         )
-        self.flickNotePixMap = QPixmap(Const.IMAGES_PATH / "flick_note.png")
-        self.flickTraceNotePixMap = QPixmap(Const.IMAGES_PATH / "flick_trace_note.png")
-        self.flickNoteArrowPixMap = QPixmap(Const.IMAGES_PATH / "flick_note_arrow.png")
-        self.skyNotePixMap = QPixmap(Const.IMAGES_PATH / "sky_note.png")
-        self.skyTraceNotePixMap = QPixmap(Const.IMAGES_PATH / "sky_trace_note.png")
+        self.flickNotePixMap = QPixmap(Const.assetPath("images", "flick_note.png"))
+        self.flickTraceNotePixMap = QPixmap(
+            Const.assetPath("images", "flick_trace_note.png")
+        )
+        self.flickNoteArrowPixMap = QPixmap(
+            Const.assetPath("images", "flick_note_arrow.png")
+        )
+        self.skyNotePixMap = QPixmap(Const.assetPath("images", "sky_note.png"))
+        self.skyTraceNotePixMap = QPixmap(
+            Const.assetPath("images", "sky_trace_note.png")
+        )
 
         # 表示倍率（縦方向のズーム）とスナップ（1拍あたりの分割数）
         self.pixelsPerSecond: float = Const.PIXELS_PER_SECOND

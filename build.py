@@ -11,8 +11,8 @@ CONFIG_PATH = ROOT / "pysidedeploy.spec"
 
 # Pure Python packages the app imports at runtime.  pyside6-android-deploy only
 # installs python3/shiboken6/PySide6, so these are appended to app.requirements
-# and installed by python-for-android's pip step.
-ANDROID_REQUIREMENTS = "qtawesome,qtpy"
+# and installed by python-for-android's pip step.  (現在は追加パッケージなし)
+ANDROID_REQUIREMENTS = ""
 
 # File extensions p4a must copy into the APK.  Its default list
 # (py,png,jpg,kv,atlas) drops the app's sound effects.
@@ -122,6 +122,15 @@ def build_ios(config) -> None:
         if deploy
         else [sys.executable, "-m", "PySide6.scripts.ios_deploy"]
     )
+
+    # pyside6-ios-deploy は .py しかバンドルしない。assets/ を Qt リソース
+    # (assets_rc.py) に変換して、アプリの .py として同梱する。
+    subprocess.run(
+        [sys.executable, str(ROOT / "build_scripts" / "generate_assets_rc.py")],
+        check=True,
+        cwd=ROOT,
+    )
+
     cmd += [
         "-c",
         str(CONFIG_PATH),
@@ -177,6 +186,16 @@ def build_ios(config) -> None:
                 ],
                 check=False,
             )
+
+        # 診断ログ (Documents/beatica.log) を Files アプリから取り出せるように
+        import plistlib
+
+        with plist.open("rb") as f:
+            info = plistlib.load(f)
+        info["UIFileSharingEnabled"] = True
+        info["LSSupportsOpeningDocumentsInPlace"] = True
+        with plist.open("wb") as f:
+            plistlib.dump(info, f)
 
     # 実機(iphoneos)向けにアドホック署名でビルド（サイドロ−ド前提）
     build_dir = ROOT / "dist" / "ios"

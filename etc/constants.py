@@ -1,10 +1,36 @@
+import sys
 from pathlib import Path
+
+from PySide6.QtCore import QUrl
 
 WINDOW_WIDTH = 1920
 WINDOW_HEIGHT = 1080
+
+# pyside6-ios-deploy はプロジェクト内の .py しかバンドルしないため、
+# iOS では assets/ を Qt リソース (assets_rc.py) として読み込む。
+IS_IOS = sys.platform == "ios"
 ASSETS_PATH = Path("assets/")
-IMAGES_PATH = ASSETS_PATH / "images"
-SOUNDS_PATH = ASSETS_PATH / "sounds"
+
+if IS_IOS:
+    import assets_rc  # noqa: F401  (リソース登録の副作用が必要)
+
+
+def assetPath(*parts: str) -> str:
+    """アセットへのパスを返す（QPixmap / QIcon 用）。
+
+    iOS はバンドルされた Qt リソース、それ以外は assets/ の実ファイルを読む。
+    """
+    if IS_IOS:
+        return ":/assets/" + "/".join(parts)
+    return str(ASSETS_PATH.joinpath(*parts))
+
+
+def assetUrl(*parts: str) -> QUrl:
+    """アセットへの QUrl を返す（QSoundEffect / QMediaPlayer 用）。"""
+    if IS_IOS:
+        return QUrl("qrc:/assets/" + "/".join(parts))
+    return QUrl.fromLocalFile(str(ASSETS_PATH.joinpath(*parts)))
+
 
 # notes view
 NOTE_WIDTH = 20

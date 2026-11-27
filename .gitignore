@@ -10,3 +10,7 @@ wheels/
 .venv
 
 autosaves/
+
+# ビルド時に生成する Qt リソース
+assets.qrc
+assets_rc.py

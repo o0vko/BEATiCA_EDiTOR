@@ -3,8 +3,12 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from etc import diagnostics
+
+# 重い import より前に、iOS の未捕捉例外をログへ残す
+diagnostics.install()
+
 import PySide6
-import qtawesome as qta
 from PySide6 import QtMultimedia
 from PySide6.QtCore import QSettings, QSize, Qt, QTimer, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QKeyEvent, QPalette
@@ -380,37 +384,37 @@ class MainWindow(QMainWindow):
 
         actions = [
             (
-                QIcon(qta.icon("fa5s.mouse-pointer", color="#fff")),
+                QIcon(Const.assetPath("images", "icons", "toolbar", "select.png")),
                 "選択",
                 EditMode.SELECT,
             ),
             (
-                QIcon(str(Const.IMAGES_PATH / "icons" / "tap_note.png")),
+                QIcon(Const.assetPath("images", "icons", "tap_note.png")),
                 "タップノーツを配置",
                 EditMode.TAP_NOTE,
             ),
             (
-                QIcon(str(Const.IMAGES_PATH / "icons" / "trace_note.png")),
+                QIcon(Const.assetPath("images", "icons", "trace_note.png")),
                 "トレースノーツを配置",
                 EditMode.TRACE_NOTE,
             ),
             (
-                QIcon(str(Const.IMAGES_PATH / "icons" / "long_note.png")),
+                QIcon(Const.assetPath("images", "icons", "long_note.png")),
                 "ロングノーツを配置",
                 EditMode.LONG_NOTE,
             ),
             (
-                QIcon(str(Const.IMAGES_PATH / "icons" / "long_note_connector.png")),
+                QIcon(Const.assetPath("images", "icons", "long_note_connector.png")),
                 "ロングノーツコネクターを配置",
                 EditMode.LONG_NOTE_CONNECTOR,
             ),
             (
-                QIcon(str(Const.IMAGES_PATH / "icons" / "flick_note.png")),
+                QIcon(Const.assetPath("images", "icons", "flick_note.png")),
                 "フリックノーツを配置",
                 EditMode.FLICK_NOTE,
             ),
             (
-                QIcon(str(Const.IMAGES_PATH / "icons" / "sky_note.png")),
+                QIcon(Const.assetPath("images", "icons", "sky_note.png")),
                 "スカイノーツを配置",
                 EditMode.SKY_NOTE,
             ),
@@ -444,21 +448,27 @@ class MainWindow(QMainWindow):
         self.addToolBar(touchBar)
 
         zoomInAction = QAction(
-            QIcon(qta.icon("fa5s.search-plus", color="#fff")), "ズーム+", self
+            QIcon(Const.assetPath("images", "icons", "toolbar", "zoom_in.png")),
+            "ズーム+",
+            self,
         )
         zoomInAction.setToolTip("ズーム+")
         zoomInAction.triggered.connect(lambda: self.chartAreaCanvas.zoomBy(1))
         touchBar.addAction(zoomInAction)
 
         zoomOutAction = QAction(
-            QIcon(qta.icon("fa5s.search-minus", color="#fff")), "ズーム−", self
+            QIcon(Const.assetPath("images", "icons", "toolbar", "zoom_out.png")),
+            "ズーム−",
+            self,
         )
         zoomOutAction.setToolTip("ズーム−")
         zoomOutAction.triggered.connect(lambda: self.chartAreaCanvas.zoomBy(-1))
         touchBar.addAction(zoomOutAction)
 
         self.snapIgnoreAction = QAction(
-            QIcon(qta.icon("fa5s.magnet", color="#fff")), "スナップ無視", self
+            QIcon(Const.assetPath("images", "icons", "toolbar", "snap_ignore.png")),
+            "スナップ無視",
+            self,
         )
         self.snapIgnoreAction.setToolTip("スナップ無視")
         self.snapIgnoreAction.setCheckable(True)
@@ -466,7 +476,9 @@ class MainWindow(QMainWindow):
         touchBar.addAction(self.snapIgnoreAction)
 
         touchCopyAction = QAction(
-            QIcon(qta.icon("fa5s.copy", color="#fff")), "コピー", self
+            QIcon(Const.assetPath("images", "icons", "toolbar", "copy.png")),
+            "コピー",
+            self,
         )
         touchCopyAction.setToolTip("コピー")
         touchCopyAction.triggered.connect(self.chartAreaCanvas.copySelectedNotes)
@@ -474,7 +486,9 @@ class MainWindow(QMainWindow):
         self.touchCopyAction = touchCopyAction
 
         touchPasteAction = QAction(
-            QIcon(qta.icon("fa5s.paste", color="#fff")), "ペースト", self
+            QIcon(Const.assetPath("images", "icons", "toolbar", "paste.png")),
+            "ペースト",
+            self,
         )
         touchPasteAction.setToolTip("ペースト")
         touchPasteAction.triggered.connect(self.chartAreaCanvas.pasteNotes)
@@ -482,7 +496,9 @@ class MainWindow(QMainWindow):
         self.touchPasteAction = touchPasteAction
 
         touchDeleteAction = QAction(
-            QIcon(qta.icon("fa5s.trash", color="#fff")), "削除", self
+            QIcon(Const.assetPath("images", "icons", "toolbar", "delete.png")),
+            "削除",
+            self,
         )
         touchDeleteAction.setToolTip("削除")
         touchDeleteAction.triggered.connect(self.chartAreaCanvas.deleteSelectedNotes)

@@ -17,7 +17,6 @@ version = "0.0.1"
 source = { virtual = "." }
 dependencies = [
     { name = "pyside6" },
-    { name = "qtawesome" },
 ]
 
 [package.dev-dependencies]
@@ -33,6 +32,7 @@ dev = [
     { name = "pillow" },
     { name = "pip" },
     { name = "pyright" },
+    { name = "qtawesome" },
     { name = "ruff" },
     { name = "ty" },
 ]
@@ -44,10 +44,7 @@ ios = [
 ]
 
 [package.metadata]
-requires-dist = [
-    { name = "pyside6", specifier = ">=6.12.0" },
-    { name = "qtawesome", specifier = ">=1.4.2" },
-]
+requires-dist = [{ name = "pyside6", specifier = ">=6.12.0" }]
 
 [package.metadata.requires-dev]
 android = [
@@ -62,6 +59,7 @@ dev = [
     { name = "pillow", specifier = ">=13.0.0" },
     { name = "pip", specifier = ">=26.3" },
     { name = "pyright", specifier = ">=1.1.414" },
+    { name = "qtawesome", specifier = ">=1.4.2" },
     { name = "ruff", specifier = ">=0.17.6" },
     { name = "ty", specifier = ">=0.0.107" },
 ]

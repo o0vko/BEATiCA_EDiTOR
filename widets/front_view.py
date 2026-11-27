@@ -37,8 +37,10 @@ class FrontViewWidget(QWidget):
 
         self.setMinimumSize(0, 240)
 
-        self.skyNotePixMap = QPixmap(Const.IMAGES_PATH / "sky_note.png")
-        self.skyTraceNotePixMap = QPixmap(Const.IMAGES_PATH / "sky_trace_note.png")
+        self.skyNotePixMap = QPixmap(Const.assetPath("images", "sky_note.png"))
+        self.skyTraceNotePixMap = QPixmap(
+            Const.assetPath("images", "sky_trace_note.png")
+        )
 
         # ドラッグ中のスカイノーツ
         self.draggingNote: Note | None = None
