@@ -69,6 +69,8 @@ class ChartViewWidget(QWidget):
     skyKnotsChanged = Signal()
     # クリップボードが変更された（ペースト可否の更新用）
     clipboardChanged = Signal()
+    # 再生状態が変化した（True=再生中, False=停止/一時停止）
+    playbackStateChanged = Signal(bool)
 
     def __init__(
         self,
@@ -647,6 +649,7 @@ class ChartViewWidget(QWidget):
             self.player.play()
 
         self.seekTimer.start()
+        self.playbackStateChanged.emit(True)
 
     def pause(self):
         if not self.internalPlaying:
@@ -657,7 +660,14 @@ class ChartViewWidget(QWidget):
         if self.hasAudioSource():
             self.player.pause()
 
+        self.playbackStateChanged.emit(False)
         self.update()
+
+    def stop(self):
+        """再生を停止して先頭へ戻す"""
+        if self.internalPlaying:
+            self.pause()
+        self.seekTo(0.0)
 
     def syncSmoothPosition(self):
         self.rawPositionMs = self.player.position()
@@ -676,6 +686,24 @@ class ChartViewWidget(QWidget):
             self.player.setPosition(round(self.smoothTime * 1000))
 
         self.update()
+
+    def stepBeat(self, direction: int):
+        """現在の再生位置をスナップ1区切りぶん前/後へ移動する"""
+        step = self._beatSnapStep()
+        beat = self._currentBeatSafe()
+        target = beat + direction * step
+        # 0 より前には進めない
+        target = max(0.0, target)
+        try:
+            self.seekTo(self.getTimeFromBeat(target))
+        except ValueError:
+            pass
+
+    def stepBeatBack(self):
+        self.stepBeat(-1)
+
+    def stepBeatForward(self):
+        self.stepBeat(1)
 
     def updateSeek(self):
         elapsed = self.tickClock.restart() / 1000.0

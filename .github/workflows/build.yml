@@ -372,6 +372,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
+        id: release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: "${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}"
@@ -384,6 +385,7 @@ jobs:
         shell: bash
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RELEASE_URL: ${{ steps.release.outputs.html_url }}
         run: |
           set -euo pipefail
 
@@ -392,22 +394,9 @@ jobs:
             exit 0
           fi
 
-          mapfile -t FILES < <(find release -type f | sort)
+          CONTENT="BEATiCA EDiTOR ビルド完了 (${{ github.ref_name }}) ${RELEASE_URL}"
 
-          if [ "${#FILES[@]}" -eq 0 ]; then
-            echo "No files to send"
-            exit 0
-          fi
-
-          CONTENT="BEATiCA EDiTOR ビルド完了 (${{ github.ref_name }})"
-
-          ARGS=(
-            -sS
-            -F "payload_json=$(jq -nc --arg c "$CONTENT" '{content:$c}')"
-          )
-
-          for i in "${!FILES[@]}"; do
-            ARGS+=(-F "files[$i]=@${FILES[$i]}")
-          done
-
-          curl "${ARGS[@]}" "$DISCORD_WEBHOOK_URL"
+          curl -sS \
+            -H "Content-Type: application/json" \
+            -d "$(jq -nc --arg c "$CONTENT" '{content:$c}')" \
+            "$DISCORD_WEBHOOK_URL"

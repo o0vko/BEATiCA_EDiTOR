@@ -505,10 +505,61 @@ class MainWindow(QMainWindow):
         touchBar.addAction(touchDeleteAction)
         self.touchDeleteAction = touchDeleteAction
 
+        # 再生・シーク操作バー
+        playbackBar = QToolBar("再生操作", self)
+        self.playbackBar = playbackBar
+        self.addToolBar(playbackBar)
+
+        stepBackAction = QAction(
+            QIcon(Const.assetPath("images", "icons", "toolbar", "step_back.png")),
+            "1ビートスナップ戻す",
+            self,
+        )
+        stepBackAction.setToolTip("1ビートスナップ戻す")
+        stepBackAction.triggered.connect(self.chartAreaCanvas.stepBeatBack)
+        playbackBar.addAction(stepBackAction)
+        self.stepBackAction = stepBackAction
+
+        stopAction = QAction(
+            QIcon(Const.assetPath("images", "icons", "toolbar", "stop.png")),
+            "停止",
+            self,
+        )
+        stopAction.setToolTip("停止")
+        stopAction.triggered.connect(self.chartAreaCanvas.stop)
+        playbackBar.addAction(stopAction)
+        self.stopAction = stopAction
+
+        self.playPauseAction = QAction(
+            QIcon(Const.assetPath("images", "icons", "toolbar", "play_pause.png")),
+            "再生/一時停止",
+            self,
+        )
+        self.playPauseAction.setToolTip("再生/一時停止")
+        self.playPauseAction.triggered.connect(self.chartAreaCanvas.togglePlay)
+        playbackBar.addAction(self.playPauseAction)
+        self.chartAreaCanvas.playbackStateChanged.connect(self.onPlaybackStateChanged)
+
+        stepForwardAction = QAction(
+            QIcon(Const.assetPath("images", "icons", "toolbar", "step_forward.png")),
+            "1ビートスナップ進める",
+            self,
+        )
+        stepForwardAction.setToolTip("1ビートスナップ進める")
+        stepForwardAction.triggered.connect(self.chartAreaCanvas.stepBeatForward)
+        playbackBar.addAction(stepForwardAction)
+        self.stepForwardAction = stepForwardAction
+
         self.applyIconSize()
 
     def onSnapIgnoreToggled(self, checked: bool):
         self.chartAreaCanvas.forceNoSnap = checked
+
+    def onPlaybackStateChanged(self, playing: bool):
+        iconName = "pause" if playing else "play_pause"
+        self.playPauseAction.setIcon(
+            QIcon(Const.assetPath("images", "icons", "toolbar", f"{iconName}.png"))
+        )
 
     def applyIconSize(self):
         key = str(QSettings("BEATiCA", "EDiTOR").value("ui/iconSize", "medium"))
@@ -517,6 +568,8 @@ class MainWindow(QMainWindow):
             self.toolbar.setIconSize(QSize(size, size))
         if getattr(self, "touchBar", None) is not None:
             self.touchBar.setIconSize(QSize(size, size))
+        if getattr(self, "playbackBar", None) is not None:
+            self.playbackBar.setIconSize(QSize(size, size))
 
     def onModeSelected(self, mode: EditMode):
         self.editing.editMode = mode

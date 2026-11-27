@@ -24,6 +24,11 @@ ICONS = {
     "copy": "fa5s.copy",
     "paste": "fa5s.paste",
     "delete": "fa5s.trash",
+    "step_back": "fa5s.step-backward",
+    "stop": "fa5s.stop",
+    "play_pause": "fa5s.play",
+    "pause": "fa5s.pause",
+    "step_forward": "fa5s.step-forward",
 }
 
 
