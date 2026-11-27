@@ -48,14 +48,14 @@ def verify_android_apk(apk: Path) -> None:
     missing = sorted(
         lib
         for lib in referenced
-        if any(lib.endswith(f"_{abi}.so") for abi in abis)
-        and lib not in native_libs
+        if any(lib.endswith(f"_{abi}.so") for abi in abis) and lib not in native_libs
     )
     if missing:
         raise RuntimeError(
             f"{apk.name}: QtLoader references libraries that are not packaged: "
             + ", ".join(missing)
         )
+
 
 ICONS = {
     "Windows": "res/icon.ico",
@@ -117,11 +117,7 @@ def build_ios(config) -> None:
         )
 
     deploy = shutil.which("pyside6-ios-deploy")
-    cmd = (
-        [deploy]
-        if deploy
-        else [sys.executable, "-m", "PySide6.scripts.ios_deploy"]
-    )
+    cmd = [deploy] if deploy else [sys.executable, "-m", "PySide6.scripts.ios_deploy"]
 
     # pyside6-ios-deploy は .py しかバンドルしない。assets/ を Qt リソース
     # (assets_rc.py) に変換して、アプリの .py として同梱する。
@@ -227,7 +223,9 @@ def build_ios(config) -> None:
     if result.returncode != 0:
         raise SystemExit(f"[IOS] xcodebuild failed ({result.returncode})")
 
-    app_bundles = sorted(build_dir.glob(f"Build/Products/Debug-iphoneos/{app_name}.app"))
+    app_bundles = sorted(
+        build_dir.glob(f"Build/Products/Debug-iphoneos/{app_name}.app")
+    )
     if not app_bundles:
         raise RuntimeError("[IOS] .app が見つかりませんでした")
     app_bundle = app_bundles[0]
@@ -237,18 +235,18 @@ def build_ios(config) -> None:
     shutil.rmtree(payload, ignore_errors=True)
     payload.mkdir(parents=True)
     shutil.copytree(app_bundle, payload / app_bundle.name)
-    
+
     # Qtのビルド中間生成物を除去
     app_payload = payload / app_bundle.name
-    
+
     for directory in list(app_payload.rglob("objects-Release")):
         if directory.is_dir():
             shutil.rmtree(directory)
-    
+
     for obj in app_payload.rglob("*.o"):
         if obj.is_file():
             obj.unlink()
-    
+
     ipa = ROOT / "dist" / f"{app_name}.ipa"
     if ipa.exists():
         ipa.unlink()
@@ -298,9 +296,7 @@ def main():
         wheel_pyside = wheel_shiboken = None
         for tag in ("cp310-abi3", "cp311-cp311", "cp39-abi3"):
             pyside_name = f"pyside6-{version}-{version}-{tag}-android_{arch}.whl"
-            shiboken_name = (
-                f"shiboken6-{version}-{version}-{tag}-android_{arch}.whl"
-            )
+            shiboken_name = f"shiboken6-{version}-{version}-{tag}-android_{arch}.whl"
             pyside_ok = download(f"{base}/pyside6/{pyside_name}", ROOT / pyside_name)
             shiboken_ok = download(
                 f"{base}/shiboken6/{shiboken_name}", ROOT / shiboken_name
@@ -313,9 +309,9 @@ def main():
         for wheel in (wheel_pyside, wheel_shiboken):
             if not wheel:
                 continue
-        
+
             print(f"\n[ANDROID DEBUG] Inspecting {wheel}")
-        
+
             with zipfile.ZipFile(wheel) as z:
                 for entry in z.namelist():
                     if ".so" in entry and (
@@ -365,8 +361,7 @@ def main():
         )
         if result.returncode != 0 or not produced:
             print(
-                f"[ANDROID] failed (code {result.returncode}, "
-                f"apk/aab={len(produced)})"
+                f"[ANDROID] failed (code {result.returncode}, apk/aab={len(produced)})"
             )
             sys.exit(1)
         for apk in glob.glob(str(ROOT / "dist" / "*.apk")):

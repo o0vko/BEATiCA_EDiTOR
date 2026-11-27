@@ -813,9 +813,7 @@ class ChartViewWidget(QWidget):
         self.pressConvertFlick = False
 
         modifiers = event.modifiers()
-        noSnap = self.forceNoSnap or bool(
-            modifiers & Qt.KeyboardModifier.ShiftModifier
-        )
+        noSnap = self.forceNoSnap or bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
 
         # knotハンドルのクリック判定（SELECTモードのみ）
         if self.editing.editMode == EditMode.SELECT:
@@ -960,7 +958,7 @@ class ChartViewWidget(QWidget):
             self.update()
 
     def laneFromPos(
-        self, pos: QPoint, noteWidth: float = 4.0, noSnap: bool = False
+        self, pos: QPoint | QMouseEvent, noteWidth: float = 4.0, noSnap: bool = False
     ) -> float:
         """カーソル位置をノーツの中心に置くためのレーンを求める"""
         rawLane = self.getLaneFromXPoint(pos.x()) - noteWidth / 2
@@ -1050,9 +1048,7 @@ class ChartViewWidget(QWidget):
         return SkyNote(
             id=anchor.id,
             floatings=[
-                SkyNoteFloating(
-                    beat=anchorBeat, lane=anchorLane, positionY=0.0
-                )
+                SkyNoteFloating(beat=anchorBeat, lane=anchorLane, positionY=0.0)
             ],
         )
 
@@ -1800,9 +1796,7 @@ class ChartViewWidget(QWidget):
                 -hitMargin, -Const.NOTE_HEIGHT, hitMargin, Const.NOTE_HEIGHT
             )
             if hitRect.contains(pos):
-                note = next(
-                    (n for n in self.editing.chart.notes if n.id == id), None
-                )
+                note = next((n for n in self.editing.chart.notes if n.id == id), None)
                 if note and note not in self.editing.selectedNotes:
                     self.editing.selectedNotes = [note]
                     self.noteSelectionChanged.emit()

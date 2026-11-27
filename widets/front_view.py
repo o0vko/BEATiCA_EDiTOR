@@ -239,13 +239,9 @@ class FrontViewWidget(QWidget):
                         continue
                     for i in range(17):
                         t = i / 16
-                        eased = _ease(
-                            a.laneCurveType or CurveType.linear, t
-                        )
+                        eased = _ease(a.laneCurveType or CurveType.linear, t)
                         lane = a.lane + (b.lane - a.lane) * eased
-                        posYEased = _ease(
-                            a.positionYCurveType or CurveType.linear, t
-                        )
+                        posYEased = _ease(a.positionYCurveType or CurveType.linear, t)
                         posY = a.positionY + (b.positionY - a.positionY) * posYEased
                         x = self.laneToX(lane)
                         y = self.positionYToY(posY)
@@ -256,9 +252,7 @@ class FrontViewWidget(QWidget):
                             path.lineTo(x, y)
                 if not first:
                     painter.save()
-                    painter.setPen(
-                        QPen(QColor("#0ff"), 2 if isSelectedSky else 1)
-                    )
+                    painter.setPen(QPen(QColor("#0ff"), 2 if isSelectedSky else 1))
                     painter.setBrush(Qt.BrushStyle.NoBrush)
                     painter.drawPath(path)
                     painter.restore()
@@ -283,9 +277,7 @@ class FrontViewWidget(QWidget):
                     painter.save()
                     painter.setPen(QPen(QColor("#ff0"), 2))
                     painter.setBrush(Qt.BrushStyle.NoBrush)
-                    painter.drawRect(
-                        round(x) - 2, round(y) - 2, round(w) + 4, h + 4
-                    )
+                    painter.drawRect(round(x) - 2, round(y) - 2, round(w) + 4, h + 4)
                     painter.restore()
 
     def _paintSky(self, painter: QPainter, note, skyNote, x: float, posY: float):

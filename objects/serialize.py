@@ -85,9 +85,7 @@ def chartToDict(chart: Chart) -> dict:
                             f.laneCurveType.name if f.laneCurveType else None
                         ),
                         "positionYCurveType": (
-                            f.positionYCurveType.name
-                            if f.positionYCurveType
-                            else None
+                            f.positionYCurveType.name if f.positionYCurveType else None
                         ),
                     }
                     for f in s.floatings

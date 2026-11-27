@@ -288,7 +288,9 @@ class MainWindow(QMainWindow):
     def _startSaveProject(self):
         self._pendingFileAction = "saveProject"
         suggested = (
-            str(self.currentProjectPath) if self.currentProjectPath else "untitled.beaproj"
+            str(self.currentProjectPath)
+            if self.currentProjectPath
+            else "untitled.beaproj"
         )
         self.fileDialogs.saveFile(
             self, "プロジェクトを保存", "BEATiCA Project (*.beaproj)", suggested

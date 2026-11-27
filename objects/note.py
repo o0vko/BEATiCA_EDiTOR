@@ -92,8 +92,7 @@ class SkyNoteFloating:
             struct.pack("<f", self.lane),
             struct.pack("<f", self.positionY),
             (self.laneCurveType or CurveType.linear).value.to_bytes(4, "little"),
-            (self.positionYCurveType or CurveType.linear)
-            .value.to_bytes(4, "little"),
+            (self.positionYCurveType or CurveType.linear).value.to_bytes(4, "little"),
         ]
 
 

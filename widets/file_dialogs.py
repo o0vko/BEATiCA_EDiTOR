@@ -62,7 +62,7 @@ class FileDialogController(QObject):
 
     def openFile(self, parent, caption: str, name_filter: str):
         dialog = QFileDialog(parent, caption, "", name_filter)
-        dialog.setFileMode(QFileDialog.FileMode.OpenFile)
+        dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         self._start(dialog, QFileDialog.AcceptMode.AcceptOpen)
 
     def saveFile(self, parent, caption: str, name_filter: str, suggested: str = ""):

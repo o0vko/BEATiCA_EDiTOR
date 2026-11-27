@@ -37,8 +37,8 @@ import PySide6
 scripts_dir = Path(PySide6.__file__).parent / "scripts"
 sys.path.insert(0, str(scripts_dir))
 
-from deploy_lib.android.android_config import AndroidConfig
-from deploy_lib.android.buildozer import BuildozerConfig
+from deploy_lib.android.android_config import AndroidConfig  # ty: ignore[import-not-found]
+from deploy_lib.android.buildozer import BuildozerConfig  # ty: ignore[import-not-found]
 
 
 def _install_workaround() -> None:
@@ -76,9 +76,9 @@ def _install_requirements_workaround() -> None:
         original_init(self, *args, **kwargs)
         extra = [
             requirement.strip()
-            for requirement in os.environ.get(
-                "BEATiCA_ANDROID_REQUIREMENTS", ""
-            ).split(",")
+            for requirement in os.environ.get("BEATiCA_ANDROID_REQUIREMENTS", "").split(
+                ","
+            )
             if requirement.strip()
         ]
         if not extra:
@@ -108,16 +108,14 @@ def _install_include_exts_workaround() -> None:
         original_init(self, *args, **kwargs)
         extra = [
             extension.strip().lstrip(".")
-            for extension in os.environ.get(
-                "BEATiCA_ANDROID_INCLUDE_EXTS", ""
-            ).split(",")
+            for extension in os.environ.get("BEATiCA_ANDROID_INCLUDE_EXTS", "").split(
+                ","
+            )
             if extension.strip()
         ]
         if not extra:
             return
-        current = (
-            self.get_value("app", "source.include_exts", ignore_fail=True) or ""
-        )
+        current = self.get_value("app", "source.include_exts", ignore_fail=True) or ""
         merged = list(
             dict.fromkeys(
                 [item.strip() for item in current.split(",") if item.strip()] + extra
