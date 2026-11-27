@@ -393,7 +393,7 @@ jobs:
             exit 0
           fi
 
-          CONTENT="**BEATiCA EDiTOR** New version Released\n${RELEASE_URL}"
+          CONTENT=$'**BEATiCA EDiTOR** New version Released\n'"${RELEASE_URL}"
 
           curl -sS \
             -H "Content-Type: application/json" \
