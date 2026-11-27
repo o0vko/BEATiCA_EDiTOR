@@ -1,3 +1,4 @@
+
 name: Build and Release
 
 on:
@@ -22,7 +23,9 @@ jobs:
             platform: macos
           - os: ubuntu-latest
             platform: linux
+
     runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -38,23 +41,58 @@ jobs:
       - name: Build
         run: uv run build.py
 
-      - name: Package
+      # Windows ZIP
+      - name: Package Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path dist/* `
+            -DestinationPath BEATiCA-EDiTOR-windows.zip
+
+          "ARCHIVE=BEATiCA-EDiTOR-windows.zip" >> $env:GITHUB_ENV
+
+      # macOS APP -> ZIP
+      - name: Package macOS
+        if: matrix.platform == 'macos'
         shell: bash
         run: |
           set -euo pipefail
-          NAME="BEATiCA-EDiTOR-${{ matrix.platform }}"
-          tar -czf "${NAME}.tar.gz" -C dist .
-          echo "ARCHIVE=${NAME}.tar.gz" >> "$GITHUB_ENV"
+
+          APP="$(find dist -maxdepth 1 -type d -name '*.app' -print -quit)"
+
+          if [ -z "$APP" ]; then
+            echo "No .app bundle found in dist/"
+            exit 1
+          fi
+
+          ditto -c -k --sequesterRsrc --keepParent \
+            "$APP" BEATiCA-EDiTOR-macos.zip
+
+          echo "ARCHIVE=BEATiCA-EDiTOR-macos.zip" >> "$GITHUB_ENV"
+
+      # Linux TAR.GZ
+      - name: Package Linux
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          tar -czf BEATiCA-EDiTOR-linux.tar.gz -C dist .
+
+          echo "ARCHIVE=BEATiCA-EDiTOR-linux.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}
           path: ${{ env.ARCHIVE }}
+          if-no-files-found: error
 
   android:
     name: Build Android
     runs-on: ubuntu-24.04
+
     steps:
       - uses: actions/checkout@v4
 
@@ -67,7 +105,16 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y openjdk-21-jdk zip unzip autoconf libtool pkg-config zlib1g-dev libncurses-dev cmake libffi-dev libssl-dev build-essential libltdl-dev libdouble-conversion3 libxkbcommon0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-render-util0
+          sudo apt-get install -y \
+            openjdk-21-jdk \
+            zip unzip \
+            autoconf libtool pkg-config \
+            zlib1g-dev libncurses-dev cmake \
+            libffi-dev libssl-dev build-essential \
+            libltdl-dev libdouble-conversion3 \
+            libxkbcommon0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-keysyms1 \
+            libxcb-shape0 libxcb-render-util0
 
       - name: Sync dependencies (android)
         run: uv sync --group android
@@ -75,26 +122,39 @@ jobs:
       - name: Prepare Android SDK/NDK
         run: |
           set -euo pipefail
+
           export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+
           SDKM="$(command -v sdkmanager || true)"
+
           if [ -z "$SDKM" ]; then
             SDKM="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           fi
+
           yes | "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" --licenses >/dev/null 2>&1 || true
-          "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-          # ガイド(PySide6-to-Android)推奨のNDK r28cを導入
+
+          "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+          # NDK r28c
           "$SDKM" --sdk_root="$ANDROID_SDK_ROOT" "ndk;28.2.13676358"
-          # buildozerは旧パス tools/bin/sdkmanager を参照するためシンボリックリンクを張る
+
+          # Legacy SDK Manager path
           mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
+
           for tool in sdkmanager avdmanager lint retrace; do
             src="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/$tool"
             [ -f "$src" ] && ln -sf "$src" "$ANDROID_SDK_ROOT/tools/bin/$tool"
           done
-          # NDK/ビルドツールに実行権限を付与（無いとlinkerが失敗する）
+
+          # Permissions
           chmod +x -R "$ANDROID_SDK_ROOT/ndk" 2>/dev/null || true
           chmod +x -R "$ANDROID_SDK_ROOT/build-tools" 2>/dev/null || true
           chmod +x -R "$ANDROID_SDK_ROOT/platform-tools" 2>/dev/null || true
-          # p4a/buildozerへr28cを明示
+
+          # NDK environment
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
           echo "ANDROIDNDK=$ANDROID_SDK_ROOT/ndk/28.2.13676358" >> "$GITHUB_ENV"
@@ -103,38 +163,64 @@ jobs:
         env:
           BUILD_TARGET: android
           BUILD_ARCH: aarch64
-          # libffiの "C compiler cannot create executables" 回避のためAPIレベルを下げる
           ANDROIDMINAPI: "21"
           ANDROID_NDK_API: "21"
         run: |
           set -uo pipefail
+
           mkdir -p /home/runner/cl
-          # config.logが現れた瞬間に退避（buildozerが後で消すため）
-          ( while true; do
-              find /home/runner/work -name config.log 2>/dev/null | while read -r f; do
+
+          # Capture config.log before buildozer removes it
+          (
+            while true; do
+              find /home/runner/work -name config.log 2>/dev/null |
+              while read -r f; do
                 d="/home/runner/cl/$(echo "$f" | md5sum | cut -c1-8)-$(basename "$(dirname "$f")")"
                 cp -f "$f" "$d" 2>/dev/null || true
               done
               sleep 0.2
-            done ) &
+            done
+          ) &
+
           WATCHER=$!
-          trap 'kill $WATCHER 2>/dev/null || true; echo "=== captured config.log ==="; for f in /home/runner/cl/*; do [ -f "$f" ] && { echo "===== $f ====="; cat "$f"; }; done' EXIT
+
+          trap '
+            kill "$WATCHER" 2>/dev/null || true
+            echo "=== captured config.log ==="
+            for f in /home/runner/cl/*; do
+              [ -f "$f" ] && {
+                echo "===== $f ====="
+                cat "$f"
+              }
+            done
+          ' EXIT
+
           uv run build.py
 
       - name: Dump config.log on failure
         if: failure()
         run: |
           set -uo pipefail
-          echo "== PWD =="; pwd
-          echo "== .buildozer =="; ls -la .buildozer 2>/dev/null || echo "no .buildozer"
-          echo "== ~/.buildozer =="; ls -la "$HOME/.buildozer" 2>/dev/null || echo "no ~/.buildozer"
-          echo "== config.log search (/home/runner) =="
-          find /home/runner -name config.log 2>/dev/null | while read -r f; do
+
+          echo "== PWD =="
+          pwd
+
+          echo "== .buildozer =="
+          ls -la .buildozer 2>/dev/null || echo "no .buildozer"
+
+          echo "== ~/.buildozer =="
+          ls -la "$HOME/.buildozer" 2>/dev/null || echo "no ~/.buildozer"
+
+          echo "== config.log search =="
+          find /home/runner -name config.log 2>/dev/null |
+          while read -r f; do
             echo "===== $f ====="
             tail -n 80 "$f" 2>/dev/null || true
           done
+
           echo "== *.log under .buildozer =="
-          find .buildozer "$HOME/.buildozer" -name '*.log' 2>/dev/null | while read -r f; do
+          find .buildozer "$HOME/.buildozer" -name '*.log' 2>/dev/null |
+          while read -r f; do
             echo "===== $f ====="
             tail -n 40 "$f" 2>/dev/null || true
           done
@@ -143,10 +229,10 @@ jobs:
         if: always()
         run: |
           BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
-      
+
           echo "== Android clang binaries =="
           ls -l "$BIN"/aarch64-linux-android*-clang*
-      
+
           echo "== Clang version =="
           "$BIN/clang" --version
 
@@ -154,50 +240,64 @@ jobs:
         if: always()
         run: |
           set +e
-      
+
           NDK="$ANDROID_NDK_HOME"
           BIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
           CLANG="$BIN/clang"
-      
+
           echo 'int main(void) { return 0; }' > /tmp/test.c
-      
+
           echo "== Android target compiler =="
           ls -l "$BIN"/aarch64-linux-android*-clang*
-      
+
           echo "== Compile test =="
           "$CLANG" \
             --target=aarch64-linux-android28 \
             /tmp/test.c \
             -o /tmp/test 2>&1
-      
+
           RESULT=$?
           echo "Compiler exit code: $RESULT"
-      
+
           echo "== Output file =="
           ls -l /tmp/test 2>&1 || true
 
-      - name: Package
+      # APK direct distribution
+      - name: Package Android
+        shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release
-          shopt -s nullglob
-          files=( $(find . -path ./.venv -prune -o -name '*.apk' -print) $(find . -path ./.venv -prune -o -name '*.aab' -print) )
-          for f in "${files[@]}"; do
-            cp "$f" "release/BEATiCA-EDiTOR-android-$(basename "$f")"
-          done
-          ls -la release
-          echo "APK/AAB count: ${#files[@]}"
-          tar -czf BEATiCA-EDiTOR-android.tar.gz -C release .
 
-      - name: Upload artifact
+          mkdir -p release
+
+          mapfile -d '' files < <(
+            find . \
+              -path ./.venv -prune -o \
+              -type f -name '*.apk' -print0
+          )
+
+          for f in "${files[@]}"; do
+            cp "$f" "release/$(basename "$f")"
+          done
+
+          ls -lah release
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "No APK found"
+            exit 1
+          fi
+
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: android
-          path: BEATiCA-EDiTOR-android.tar.gz
+          path: release/*.apk
+          if-no-files-found: error
 
   ios:
     name: Build iOS (unsigned IPA)
     runs-on: macos-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -215,37 +315,56 @@ jobs:
           BUILD_TARGET: ios
         run: uv run --python 3.15 build.py
 
-      - name: Package
+      # IPA direct distribution
+      - name: Package iOS
+        shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release
-          find dist -name '*.ipa' -exec cp {} release/ \;
-          ls -la release
-          tar -czf BEATiCA-EDiTOR-ios.tar.gz -C release .
 
-      - name: Upload artifact
+          mkdir -p release
+
+          find dist -type f -name '*.ipa' -exec cp {} release/ \;
+
+          ls -lah release
+
+          if ! compgen -G "release/*.ipa" > /dev/null; then
+            echo "No IPA found"
+            exit 1
+          fi
+
+      - name: Upload iOS IPA
         uses: actions/upload-artifact@v4
         with:
           name: ios
-          path: BEATiCA-EDiTOR-ios.tar.gz
+          path: release/*.ipa
+          if-no-files-found: error
 
   release:
     name: Create release and notify Discord
     needs: [build, android, ios]
     runs-on: ubuntu-latest
+
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Collect archives
-        id: collect
+      - name: Collect release files
         run: |
           set -euo pipefail
+
           mkdir -p release
-          find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec cp {} release/ \;
-          ls -la release
+
+          find artifacts -type f \( \
+            -name '*.tar.gz' -o \
+            -name '*.zip' -o \
+            -name '*.apk' -o \
+            -name '*.ipa' \
+          \) -exec cp {} release/ \;
+
+          ls -lah release
+
           {
             echo 'files<<EOF'
             find release -type f | sort
@@ -267,19 +386,28 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           set -euo pipefail
+
           if [ -z "${DISCORD_WEBHOOK_URL:-}" ]; then
             echo "DISCORD_WEBHOOK_URL is not set; skipping"
             exit 0
           fi
+
           mapfile -t FILES < <(find release -type f | sort)
-          if [ ${#FILES[@]} -eq 0 ]; then
+
+          if [ "${#FILES[@]}" -eq 0 ]; then
             echo "No files to send"
             exit 0
           fi
+
           CONTENT="BEATiCA EDiTOR ビルド完了 (${{ github.ref_name }})"
-          ARGS=(-sS -H "Content-Type: multipart/form-data")
-          ARGS+=(-F "payload_json=$(jq -nc --arg c "$CONTENT" '{content:$c}')")
-          for f in "${FILES[@]}"; do
-            ARGS+=(-F "files=@${f}")
+
+          ARGS=(
+            -sS
+            -F "payload_json=$(jq -nc --arg c "$CONTENT" '{content:$c}')"
+          )
+
+          for i in "${!FILES[@]}"; do
+            ARGS+=(-F "files[$i]=@${FILES[$i]}")
           done
+
           curl "${ARGS[@]}" "$DISCORD_WEBHOOK_URL"
