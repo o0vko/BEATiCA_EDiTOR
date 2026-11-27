@@ -8,8 +8,16 @@ QFile から直接読めるが、静的メソッドや exec() によるブロッ
 
 from __future__ import annotations
 
+import sys
+
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QFileDialog
+
+# iOS のネイティブドキュメントピッカー（UIDocumentPicker）は
+# 種類フィルタの UTI 解決に失敗すると無言で何も開かないことがある。
+# 保存ダイアログは動くのに開くダイアログだけ出ない、という症状になるため、
+# iOS ではウィジェットベースのダイアログにフォールバックする。
+IS_IOS = sys.platform == "ios"
 
 
 class FileDialogController(QObject):
@@ -27,6 +35,9 @@ class FileDialogController(QObject):
         self._picked = False
         self._dialog = dialog
         dialog.setAcceptMode(accept)
+        if IS_IOS:
+            # ネイティブピッカーが無言で失敗する問題の回避
+            dialog.setOption(QFileDialog.Option.DontUseNativeDialog, True)
         dialog.fileSelected.connect(self._onFileSelected)
         dialog.finished.connect(self._onFinished)
         dialog.open()
