@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -42,15 +43,34 @@ IS_ANDROID = "ANDROID_PRIVATE" in os.environ or hasattr(sys, "getandroidapkpath"
 IS_IOS = sys.platform == "ios"
 
 
+def _isWritable(path: Path) -> bool:
+    """ディレクトリに実際に書き込めるか（存在確認ではなく実書き込みで判定）"""
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        probe = path / ".beatica_write_test"
+        probe.write_text("", encoding="utf-8")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
 def writableDataDir() -> Path:
-    """書き込み可能なアプリデータ目录（iOS/Android のサンドボックス対応）"""
+    """書き込み可能なアプリデータ目录（iOS/Android のサンドボックス / LiveContainer 対応）"""
+    if IS_IOS:
+        # LiveContainer 等のサイドロ−ド環境では、QStandardPaths が実体と
+        # ズレた（書き込み不可能な）Data/Application/... を返すことがある。
+        # Files アプリから見える実ホーム (Path.home()) を優先する。
+        home = Path.home()
+        if _isWritable(home):
+            return home
     if IS_ANDROID or IS_IOS:
         from PySide6.QtCore import QStandardPaths
 
         location = QStandardPaths.writableLocation(
             QStandardPaths.StandardLocation.AppDataLocation
         )
-        if location:
+        if location and _isWritable(Path(location)):
             return Path(location)
     return Const.ASSETS_PATH.parent
 
@@ -282,30 +302,45 @@ class MainWindow(QMainWindow):
     def _startOpenAudio(self):
         self._pendingFileAction = "importAudio"
         self.fileDialogs.openFile(
-            self, "音声ファイルを開く", "音声ファイル (*.wav *.ogg *.mp3)"
+            self,
+            "音声ファイルを開く",
+            "音声ファイル (*.wav *.ogg *.mp3)",
+            directory=str(writableDataDir()),
         )
 
     def _startSaveProject(self):
         self._pendingFileAction = "saveProject"
+        base = writableDataDir()
         suggested = (
             str(self.currentProjectPath)
             if self.currentProjectPath
-            else "untitled.beaproj"
+            else str(base / "untitled.beaproj")
         )
         self.fileDialogs.saveFile(
-            self, "プロジェクトを保存", "BEATiCA Project (*.beaproj)", suggested
+            self,
+            "プロジェクトを保存",
+            "BEATiCA Project (*.beaproj)",
+            suggested,
+            directory=str(base),
         )
 
     def _startLoadProject(self):
         self._pendingFileAction = "loadProject"
         self.fileDialogs.openFile(
-            self, "プロジェクトを開く", "BEATiCA Project (*.beaproj)"
+            self,
+            "プロジェクトを開く",
+            "BEATiCA Project (*.beaproj)",
+            directory=str(writableDataDir()),
         )
 
     def _startExportBinary(self):
         self._pendingFileAction = "exportBinary"
         self.fileDialogs.saveFile(
-            self, "本番書き出し", "BEATiCA Chart (*.bea)", "chart.bea"
+            self,
+            "本番書き出し",
+            "BEATiCA Chart (*.bea)",
+            str(writableDataDir() / "chart.bea"),
+            directory=str(writableDataDir()),
         )
 
     def importAudio(self):
@@ -333,31 +368,50 @@ class MainWindow(QMainWindow):
             self._onFileRejected()
             return
 
-        if action == "importAudio":
-            self.bgmPath = path
-            self.player.setSource(self._toUrl(path))
-            self.chartAreaCanvas.syncWidth()
-        elif action == "saveProject":
-            target = path if path.endswith(".beaproj") else f"{path}.beaproj"
-            self.currentProjectPath = Path(target)
-            saveProject(self.editing.chart, Path(target), self.bgmPath)
-            self.markSaved()
-            if self._closeAfterSave:
-                self._closeAfterSave = False
-                self.close()
-        elif action == "loadProject":
-            chart, bgm = loadProject(Path(path))
-            self.editing.loadChart(chart)
-            self.currentProjectPath = Path(path)
-            self.bgmPath = bgm or None
-            if bgm:
-                self.player.setSource(self._toUrl(bgm))
-            self.chartAreaCanvas.onChartChanged()
-            self.detailsView.updateNoteInfo()
-            self.markSaved()
-        elif action == "exportBinary":
-            target = path if path.endswith(".bea") else f"{path}.bea"
-            saveBinary(self.editing.chart, Path(target))
+        try:
+            if action == "importAudio":
+                # 選択パスが実在し読み取り可能か確認（サイドロ−ド環境で
+                # アクセス不能な場所を指す場合があるため）
+                src = Path(path)
+                if not src.is_file():
+                    raise FileNotFoundError(path)
+                self.bgmPath = path
+                self.player.setSource(self._toUrl(path))
+                self.chartAreaCanvas.syncWidth()
+            elif action == "saveProject":
+                target = path if path.endswith(".beaproj") else f"{path}.beaproj"
+                saveProject(self.editing.chart, Path(target), self.bgmPath)
+                self.currentProjectPath = Path(target)
+                self.markSaved()
+                if self._closeAfterSave:
+                    self._closeAfterSave = False
+                    self.close()
+            elif action == "loadProject":
+                chart, bgm = loadProject(Path(path))
+                self.editing.loadChart(chart)
+                self.currentProjectPath = Path(path)
+                self.bgmPath = bgm or None
+                if bgm:
+                    self.player.setSource(self._toUrl(bgm))
+                self.chartAreaCanvas.onChartChanged()
+                self.detailsView.updateNoteInfo()
+                self.markSaved()
+            elif action == "exportBinary":
+                target = path if path.endswith(".bea") else f"{path}.bea"
+                saveBinary(self.editing.chart, Path(target))
+        except Exception as e:  # noqa: BLE001
+            diagnostics.log(
+                f"[file action failed] action={action} path={path}\n"
+                + traceback.format_exc()
+            )
+            QMessageBox.warning(
+                self,
+                "ファイル操作に失敗しました",
+                "ファイルを読み書きできませんでした。\n"
+                "iOS では Files アプリでこのアプリのフォルダに"
+                "ファイルを置いてから選んでください。\n\n"
+                f"{e}",
+            )
 
     # --- オートセーブ ---
     def setupAutosave(self):

@@ -41,6 +41,11 @@ def _append(text: str) -> None:
         pass
 
 
+def log(text: str) -> None:
+    """任意のメッセージをログへ残す（iOS 以外では何もしない）"""
+    _append(text)
+
+
 def install() -> None:
     """iOS のときだけ excepthook / faulthandler をファイル出力に差し替える。"""
     global _fault_file

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
@@ -46,8 +45,10 @@ class FileDialogController(QObject):
         if not result:
             self.rejected.emit()
 
-    def openFile(self, parent, caption: str, nameFilter: str):
-        dialog = QFileDialog(parent, caption, "", nameFilter)
+    def openFile(
+        self, parent, caption: str, nameFilter: str, directory: str = ""
+    ):
+        dialog = QFileDialog(parent, caption, directory, nameFilter)
         dialog.setFileMode(QFileDialog.FileMode.ExistingFile)
         self._start(dialog, QFileDialog.AcceptMode.AcceptOpen)
 
@@ -57,7 +58,9 @@ class FileDialogController(QObject):
         caption: str,
         nameFilter: str,
         suggested: str = "",
+        directory: str = "",
     ):
-        dialog = QFileDialog(parent, caption, suggested, nameFilter)
+        # suggested が空のときは directory を初期ディレクトリにする
+        dialog = QFileDialog(parent, caption, suggested or directory, nameFilter)
         dialog.setFileMode(QFileDialog.FileMode.AnyFile)
         self._start(dialog, QFileDialog.AcceptMode.AcceptSave)
